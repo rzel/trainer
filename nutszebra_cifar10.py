@@ -108,6 +108,7 @@ class TrainCifar10(object):
                 t = model.prepare_input(t, dtype=np.int32, volatile=False)
                 loss = model.calc_loss(y, t) / train_batch_divide
                 loss.backward()
+                loss.unchain_backward()
                 loss.to_cpu()
                 sum_loss += loss.data * data_length
                 del loss
