@@ -20,7 +20,7 @@ utility = nutszebra_utility.Utility()
 
 class TrainCifar10(object):
 
-    def __init__(self, model=None, optimizer=None, load_model=None, load_optimizer=None, load_log=None, da=nutszebra_data_augmentation.DataAugmentationCifar10NormalizeSmall, save_path='./', epoch=300, batch=128, gpu=-1, start_epoch=1, train_batch_divide=4, test_batch_divide=4):
+    def __init__(self, model=None, optimizer=None, load_model=None, load_optimizer=None, load_log=None, da=nutszebra_data_augmentation.DataAugmentationCifar10NormalizeSmall, save_path='./', epoch=300, batch=128, gpu=-1, start_epoch=1, train_batch_divide=4, test_batch_divide=4, debug_flag=False):
         self.model = model
         self.optimizer = optimizer
         self.load_model = load_model
@@ -40,6 +40,7 @@ class TrainCifar10(object):
         self.save_path = save_path if save_path[-1] == '/' else save_path + '/'
         utility.make_dir(self.save_path + 'model')
         self.log_model = nutszebra_log_model.LogModel(self.model, save_path=self.save_path)
+        self.debug_flag = debug_flag
 
     def data_init(self):
         dl = nutszebra_download_cifar10.Cifar10()
@@ -116,8 +117,9 @@ class TrainCifar10(object):
                 del y
                 del t
             optimizer.update()
-            log_model.save_stat()
-            log_model.save_grad()
+            if self.debug_flag:
+                log_model.save_stat()
+                log_model.save_grad()
         log({'loss': float(sum_loss)}, 'train_loss')
         # slack.post(log.train_loss())
         print(log.train_loss())
