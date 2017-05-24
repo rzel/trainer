@@ -1004,7 +1004,7 @@ class DataAugmentationPicture(object):
         return (x_or_probability - mean, {'mean': mean})
 
     @execute_based_on_probability
-    def normalize_picture(self, x_or_probability, value=0.):
+    def normalize_picture(self, x_or_probability, value=0., each_rgb=False, dtype=np.float32):
         """Normalize the picture
 
         Edited date:
@@ -1037,10 +1037,19 @@ class DataAugmentationPicture(object):
         Returns:
             Optional([tuple, class]): If __no_record is False, return self, otherwise return tuple(shaped x, info)
         """
-        var = np.var(x_or_probability)
-        std = np.sqrt(var + value)
-        mean = preprocess.calculate_local_average(x_or_probability)
-        return ((x_or_probability - mean) / std, {'mean': mean, 'var': var, 'std': std})
+        x_or_probability = x_or_probability.astype(dtype)
+        if each_rgb:
+            var = np.var(x_or_probability, axis=(0, 1))
+            std = np.sqrt(var + value)
+            mean = np.mean(x_or_probability, axis=(0, 1))
+            for i in six.moves.range(x_or_probability.shape[2]):
+                x_or_probability[:, :, i] = (x_or_probability[:, :, i] - mean[i]) / std[i]
+            return (x_or_probability, {'mean': mean, 'var': var, 'std': std})
+        else:
+            var = np.var(x_or_probability)
+            std = np.sqrt(var + value)
+            mean = preprocess.calculate_local_average(x_or_probability)
+            return ((x_or_probability - mean) / std, {'mean': mean, 'var': var, 'std': std})
 
     @execute_based_on_probability
     def shift_global_hsv_randomly(self, x_or_probability, hsv='h', low=(-31.992, -0.10546, -0.24140), high=(31.992, 0.10546, 0.24140), ceiling=True):
