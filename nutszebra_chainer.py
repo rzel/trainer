@@ -58,7 +58,7 @@ class Model(chainer.Chain):
 
         if gpu >= 0:
             cuda.get_device(gpu).use()
-            self.to_gpu()
+            self.to_gpu(gpu)
             return True
         return False
 
