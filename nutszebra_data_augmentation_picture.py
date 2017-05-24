@@ -1341,3 +1341,18 @@ class DataAugmentationPicture(object):
             for i in six.moves.range(3):
                 img[:, :, i] = x_or_probability.copy()
             return (img, {})
+
+    @execute_based_on_probability
+    def scale_to_one(self, x_or_probability, constant=255., dtype=np.float32):
+        x_or_probability = x_or_probability.astype(dtype)
+        return (x_or_probability / constant, {'constant': constant})
+
+    @execute_based_on_probability
+    def fixed_normalization(self, x_or_probability, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), each_rgb=True, dtype=np.float32):
+        x_or_probability = x_or_probability.astype(dtype)
+        if each_rgb:
+            for i in six.moves.range(len(mean)):
+                x_or_probability[:, :, i] = (x_or_probability[:, :, i] - mean[i]) / std[i]
+            return (x_or_probability, {'mean': mean, 'var': [s ** 2 for s in std], 'std': std})
+        else:
+            return ((x_or_probability - mean) / std, {'mean': mean, 'var': std ** 2, 'std': std})
