@@ -652,6 +652,8 @@ class DataAugmentationPicture(object):
                 return (img, info)
             if ndim == 3 and img.ndim == ndim:
                 return (img[:, :, :channel], info)
+            if ndim == 3 and img.ndim == 2 and channel == 3:
+                return (np.array([img.copy(), img.copy(), img.copy()]).transpose(1, 2, 0), info)
             else:
                 return (None, info)
         except:
