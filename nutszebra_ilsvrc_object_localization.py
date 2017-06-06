@@ -21,7 +21,7 @@ utility = nutszebra_utility.Utility()
 
 class TrainIlsvrcObjectLocalizationClassification(object):
 
-    def __init__(self, model=None, optimizer=None, load_model=None, load_optimizer=None, load_log=None, load_data=None, da=nutszebra_data_augmentation.DataAugmentationCifar10NormalizeSmall, save_path='./', epoch=100, batch=128, gpu=-1, start_epoch=1, train_batch_divide=4, test_batch_divide=4):
+    def __init__(self, model=None, optimizer=None, load_model=None, load_optimizer=None, load_log=None, load_data=None, da=nutszebra_data_augmentation.DataAugmentationCifar10NormalizeSmall, save_path='./', epoch=100, batch=128, gpu=-1, start_epoch=1, train_batch_divide=4, test_batch_divide=4, small_sample_training=None):
         self.model = model
         self.optimizer = optimizer
         self.load_model = load_model
@@ -36,6 +36,7 @@ class TrainIlsvrcObjectLocalizationClassification(object):
         self.start_epoch = start_epoch
         self.train_batch_divide = train_batch_divide
         self.test_batch_divide = test_batch_divide
+        self.small_sample_training = small_sample_training
         self.train_x, self.train_y, self.test_x, self.test_y, self.picture_number_at_each_categories, self.categories = self.data_init()
         self.log = self.log_init()
         self.model_init()
@@ -48,11 +49,20 @@ class TrainIlsvrcObjectLocalizationClassification(object):
         keys = sorted(list(data['val'].keys()))
         picture_number_at_each_categories = []
         for i, key in enumerate(keys):
-            picture_number_at_each_categories.append(len(data['train_cls'][key]))
-            train_x += data['train_cls'][key]
-            train_y += [i for _ in six.moves.range(len(data['train_cls'][key]))]
-            test_x += data['val'][key]
-            test_y += [i for _ in six.moves.range(len(data['val'][key]))]
+            if self.small_sample_training is None:
+                picture_number_at_each_categories.append(len(data['train_cls'][key]))
+                train_x += data['train_cls'][key]
+                train_y += [i for _ in six.moves.range(len(data['train_cls'][key]))]
+                test_x += data['val'][key]
+                test_y += [i for _ in six.moves.range(len(data['val'][key]))]
+            else:
+                data['train_cls'][key] = sorted(data['train_cls'][key])
+                tmp_x = data['train_cls'][key][:int(self.small_sample_training)]
+                picture_number_at_each_categories.append(len(tmp_x))
+                train_x += tmp_x
+                train_y += [i for _ in six.moves.range(len(tmp_x))]
+                test_x += data['val'][key]
+                test_y += [i for _ in six.moves.range(len(data['val'][key]))]
         categories = keys
         train_x = np.array(train_x)
         train_y = np.array(train_y)
