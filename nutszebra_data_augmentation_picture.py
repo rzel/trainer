@@ -1351,6 +1351,10 @@ class DataAugmentationPicture(object):
 
     @execute_based_on_probability
     def fixed_normalization(self, x_or_probability, mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), each_rgb=True, dtype=np.float32):
+        """
+            If you scale picture beforehand by using DataAugmentationPicture.scale_to_one, you can use default values of mean and std.
+            URL: https://github.com/facebookresearch/ResNeXt/tree/master/datasets
+        """
         x_or_probability = x_or_probability.astype(dtype)
         if each_rgb:
             for i in six.moves.range(len(mean)):
@@ -1358,3 +1362,16 @@ class DataAugmentationPicture(object):
             return (x_or_probability, {'mean': mean, 'var': [s ** 2 for s in std], 'std': std})
         else:
             return ((x_or_probability - mean) / std, {'mean': mean, 'var': std ** 2, 'std': std})
+
+    @execute_based_on_probability
+    def fixed_color_normalization(self, x_or_probability, alphastd=0.1, eigval=(0.2175, 0.0188, 0.0045), eigvec=((-0.5675, 0.7192, 0.4009), (-0.5808, -0.0045, -0.8140), (-0.5836, -0.6948, 0.4203)), each_rgb=True, dtype=np.float32):
+        """
+            URL: https://github.com/facebookresearch/ResNeXt/tree/master/datasets
+        """
+        x_or_probability = x_or_probability.astype(dtype)
+        alpha = np.tile(np.random.normal(0, alphastd, (1, 3)), (3, 1))
+        eigval = np.tile(eigval, (3, 1))
+        eigvec = np.sum(np.multiply(eigvec, eigval) * alpha, axis=1)
+        for i in six.moves.range(len(eigval)):
+            x_or_probability[:, :, i] = x_or_probability[:, :, i] + eigvec[i]
+        return (x_or_probability, {'eigval': eigval[0], 'alpha': alpha[0]})
