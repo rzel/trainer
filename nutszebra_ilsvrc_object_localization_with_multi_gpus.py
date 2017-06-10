@@ -19,7 +19,7 @@ da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 utility = nutszebra_utility.Utility()
 
 
-async def calculate_loss_and_accuracy(models, X, T, train, divider=1.0):
+async def calculate_loss(models, X, T, train, divider=1.0):
     async def execute(model, x, t, train, divider):
         x = model.prepare_input(x, dtype=np.float32, volatile=not train, gpu=model._device_id)
         t = model.prepare_input(t, dtype=np.int32, volatile=not train, gpu=model._device_id)
@@ -27,15 +27,12 @@ async def calculate_loss_and_accuracy(models, X, T, train, divider=1.0):
         loss = model.calc_loss(y, t) / divider
         if train is True:
             loss.backward()
-        accuracies = model.accuracy_n(y, t, n=5)
-        # convert to hashable objects
-        accuracies = tuple([tuple([(key, value) for key, value in accuracy.items()]) for accuracy in accuracies])
         loss.to_cpu()
-        return float(loss.data), accuracies
+        return float(loss.data)
     n_img = int(float(len(X)) / len(models))
     cors = [execute(models[i], X[i * n_img: (i + 1) * n_img], T[i * n_img: (i + 1) * n_img], train, divider) for i in six.moves.range(len(models))]
     done, pending = await asyncio.wait(cors)
-    return done, pending
+    return done
 
 
 async def backward(losses):
@@ -177,9 +174,8 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 tmp_x = Da.zero_padding(tmp_x)
                 n_img = int(float(len(tmp_x)) / n_parallel)
                 # calculate loss and accuracy
-                results = loop.run_until_complete(calculate_loss_and_accuracy(models, tmp_x, tmp_t, True, n_img * train_batch_divide))
-                done, pending = results
-                loss = np.sum([float(d.result()[0]) for d in done])
+                results = loop.run_until_complete(calculate_loss_and_accuracy(models, tmp_x, tmp_t, True, n_parallel * train_batch_divide))
+                loss = np.sum([float(r.result()) for r in results])
                 # accumulate grads
                 loop.run_until_complete(addgrads(models[0], models[1:]))
                 sum_loss += loss
