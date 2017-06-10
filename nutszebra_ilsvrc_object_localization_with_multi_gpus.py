@@ -182,8 +182,6 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 loss = np.sum([float(d.result()[0]) for d in done])
                 # accumulate grads
                 loop.run_until_complete(addgrads(models[0], models[1:]))
-                # to_cpu
-                [loss.to_cpu() for loss in losses]
                 sum_loss += loss
             optimizer.update()
             # Synchronized update
