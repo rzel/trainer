@@ -152,6 +152,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         progressbar = utility.create_progressbar(int(len(train_x) / batch), desc='train', stride=1)
         n_parallel = len(models)
         # train start
+        loop = asyncio.get_event_loop()
         for _, indices in six.moves.zip(progressbar, yielder):
             [model.cleargrads() for model in models]
             for ii in six.moves.range(0, len(indices), batch_of_batch):
@@ -169,18 +170,18 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 tmp_x = Da.zero_padding(tmp_x)
                 n_img = int(float(len(tmp_x)) / n_parallel)
                 # calculate loss and accuracy
-                results = calculate_loss_and_accuracy(models, tmp_x, tmp_t, True, n_img)
+                results = loop.run_until_complete(calculate_loss_and_accuracy(models, tmp_x, tmp_t, True, n_img))
                 losses, _ = list(six.moves.zip(*results))
                 # backward
-                backward(losses)
+                loop.run_until_complete(backward(losses))
                 # accumulate grads
-                addgrads(models[0], models[1:])
+                loop.run_until_complete(addgrads(models[0], models[1:]))
                 # to_cpu
                 [loss.to_cpu() for loss in losses]
                 sum_loss += np.sum([loss.data for loss in losses]) * data_length
             optimizer.update()
             # Synchronized update
-            copyparams(models[0], models[1:])
+            loop.run_until_complete(copyparams(models[0], models[1:]))
         log({'loss': float(sum_loss)}, 'train_loss')
         print(log.train_loss())
 
