@@ -36,7 +36,7 @@ async def backward(losses):
         loss.backward()
         return True
     cors = [_backward(loss) for loss in losses]
-    await asyncio.gather(*cors)
+    results = await asyncio.gather(*cors)
     return True
 
 
@@ -45,7 +45,7 @@ async def addgrads(model_teacher, model_students):
         model_teacher.addgrads(model_student)
         return True
     cors = [_addgrads(model_teacher, model_student) for model_student in model_students]
-    await asyncio.gather(*cors)
+    results = await asyncio.gather(*cors)
     return True
 
 
@@ -54,7 +54,7 @@ def copyparams(model_teacher, model_students):
         model_student.copyparams(model_teacher)
         return True
     cors = [_copyparams(model_teacher, model_student) for model_student in model_students]
-    await asyncio.gather(*cors)
+    results = asyncio.gather(*cors)
     return True
 
 
