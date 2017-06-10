@@ -153,7 +153,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 x = models[0].prepare_input(tmp_x, dtype=np.float32, volatile=False)
                 t = models[0].prepare_input(tmp_t, dtype=np.int32, volatile=False)
                 # parallely calculate loss
-                losses = Parallel(n_jobs=len(n_parallel))(delayed(calculate_loss)(models[i], x[i * n_img: (i + 1) * n_img], t[i * n_img: (i + 1) * n_img], True, train_batch_divide * len(models)) for i in six.moves.range(len(models)))
+                losses = Parallel(n_jobs=n_parallel)(delayed(calculate_loss)(models[i], x[i * n_img: (i + 1) * n_img], t[i * n_img: (i + 1) * n_img], True, train_batch_divide * len(models)) for i in six.moves.range(len(models)))
                 # backward
                 Parallel(n_jobs=len(n_parallel))(delayed(backward)(losses[i]) for i in six.moves.range(len(losses)))
                 # accumulate grads
@@ -205,7 +205,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             x = models[0].prepare_input(tmp_x, dtype=np.float32, volatile=True)
             n_img = int(float(x.data.shape[0]) / n_parallel)
             # parallely calculate loss
-            losses_and_accuracy = Parallel(n_jobs=len(n_parallel))(delayed(calculate_loss_and_accuracy)(models[i], x[i * n_img: (i + 1) * n_img], t[i * n_img: (i + 1) * n_img], False, test_batch_divide * len(models)) for i in six.moves.range(len(models)))
+            losses_and_accuracy = Parallel(n_jobs=n_parallel)(delayed(calculate_loss_and_accuracy)(models[i], x[i * n_img: (i + 1) * n_img], t[i * n_img: (i + 1) * n_img], False, test_batch_divide * len(models)) for i in six.moves.range(len(models)))
             losses, accuracies = list(zip(*losses_and_accuracy))
             # to_cpu
             [loss.to_cpu() for loss in losses]
