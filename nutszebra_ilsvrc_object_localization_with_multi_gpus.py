@@ -43,7 +43,7 @@ def calculate_loss_and_accuracy(model, x, y, t, divider=1.0, n=5):
 
 class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
 
-    def __init__(self, models=None, optimizer=None, load_models=None, load_optimizer=None, load_log=None, load_data=None, da=nutszebra_data_augmentation.DataAugmentationNormalizeBigger, save_path='./', epoch=100, batch=128, gpus=(0, 1, 2, 3), start_epoch=1, train_batch_divide=2, test_batch_divide=2, small_sample_training=None):
+    def __init__(self, models=None, optimizer=None, load_model=None, load_optimizer=None, load_log=None, load_data=None, da=nutszebra_data_augmentation.DataAugmentationNormalizeBigger, save_path='./', epoch=100, batch=128, gpus=(0, 1, 2, 3), start_epoch=1, train_batch_divide=2, test_batch_divide=2, small_sample_training=None):
         self.models = models
         self.optimizer = optimizer
         self.load_models = load_models
