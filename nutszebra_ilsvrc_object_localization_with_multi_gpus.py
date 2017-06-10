@@ -25,15 +25,11 @@ async def calculate_loss_and_accuracy(models, X, T, train, divider=1.0):
         t = model.prepare_input(t, dtype=np.int32, volatile=not train, gpu=model._device_id)
         y = model(x, train=train)
         loss = model.calc_loss(y, t) / divider
-        print(type(x.data))
-        print(type(t.data))
-        print(type(y.data))
-        print(type(loss.data))
         if train is True:
             loss.backward()
         accuracies = model.accuracy_n(y, t, n=5)
         # convert to hashable objects
-        accuracies = [[(key, value) for key, value in accuracy.items()] for accuracy in accuracies]
+        accuracies = tuple([tuple([(key, value) for key, value in accuracy.items()]) for accuracy in accuracies])
         loss.to_cpu()
         return float(loss.data), accuracies
     n_img = int(float(len(X)) / len(models))
