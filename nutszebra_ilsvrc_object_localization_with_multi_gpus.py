@@ -10,7 +10,7 @@ import nutszebra_preprocess_picture
 import nutszebra_data_augmentation_picture
 import nutszebra_data_augmentation
 import nutszebra_basic_print
-from sklearn.externals.joblib import Parallel, delayed
+import asyncio
 
 Da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 sampling = nutszebra_sampling.Sampling()
@@ -19,9 +19,16 @@ da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 utility = nutszebra_utility.Utility()
 
 
-def calculate_loss(model, x, t, train, divider=1.0):
-    y = model(x, train=train)
-    return model.calc_loss(y, t) / divider
+async def calculate_loss_and_accuracy(models, X, T, train, divider=1.0):
+    def execute(model, x, t, train, divider):
+        x = model.prepare_input(x, dtype=np.float32, volatile=not train)
+        t = model.prepare_input(t, dtype=np.int32, volatile=not train)
+        y = model(x, train=train)
+        return model.calc_loss(y, t) / divider
+    n_img = int(float(len(X)) / len(models))
+    cors = [execute(models[i], X[i * n_img: (i + 1) * n_img], T[i * n_img: (i + 1) * n_img], train, divider) for i in six.moves.range(len(models))]
+    results = await asyncio.gather(*cors)
+    return results
 
 
 def backward(loss):
@@ -148,12 +155,14 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                     if img is not None:
                         tmp_x.append(img)
                         tmp_t.append(t[i])
+
                 tmp_x = Da.zero_padding(tmp_x)
                 n_img = int(float(len(tmp_x)) / n_parallel)
-                x = models[0].prepare_input(tmp_x, dtype=np.float32, volatile=False)
-                t = models[0].prepare_input(tmp_t, dtype=np.int32, volatile=False)
+                losses = calculate_loss_and_accuracy(models, tmp_x, tmp_t, True, n_img)
+                # x = models[0].prepare_input(tmp_x, dtype=np.float32, volatile=False)
+                # t = models[0].prepare_input(tmp_t, dtype=np.int32, volatile=False)
                 # parallely calculate loss
-                losses = Parallel(n_jobs=n_parallel)(delayed(calculate_loss)(models[i], x[i * n_img: (i + 1) * n_img], t[i * n_img: (i + 1) * n_img], True, train_batch_divide * len(models)) for i in six.moves.range(len(models)))
+                # losses = Parallel(n_jobs=n_parallel)(delayed(calculate_loss)(models[i], x[i * n_img: (i + 1) * n_img], t[i * n_img: (i + 1) * n_img], True, train_batch_divide * len(models)) for i in six.moves.range(len(models)))
                 # backward
                 Parallel(n_jobs=len(n_parallel))(delayed(backward)(losses[i]) for i in six.moves.range(len(losses)))
                 # accumulate grads
