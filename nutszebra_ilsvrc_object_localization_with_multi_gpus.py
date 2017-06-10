@@ -142,6 +142,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
     def train_one_epoch(self):
         # initialization
         log = self.log
+        gpus = self.gpus
         models = self.models
         optimizer = self.optimizer
         train_x = self.train_x
