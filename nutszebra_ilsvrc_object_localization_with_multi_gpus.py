@@ -107,7 +107,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             log({'parameter': len(self.test_x)}, 'test_parameter')
             for i in six.moves.range(len(self.categories)):
                 log({'parameter': float((np.array(self.test_y) == i).sum())}, 'test_parameter_{}'.format(i))
-            log({'model': str(self.model)}, 'model')
+            log({'model': str(self.models)}, 'model')
         return log
 
     @staticmethod
