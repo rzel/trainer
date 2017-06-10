@@ -86,7 +86,7 @@ class Model(chainer.Chain):
         except RuntimeError:
             return np
 
-    def prepare_input(self, X, dtype=np.float32, volatile=False, xp=None):
+    def prepare_input(self, X, dtype=np.float32, volatile=False, xp=None, gpu=None):
         """Prepare input for chainer
 
         Example:
@@ -107,7 +107,11 @@ class Model(chainer.Chain):
         Returns:
             chainer.Variable : you can use this value for input of chainer model
         """
-
+        if gpu is not None:
+            inp = np.asarray(X, dtype=dtype)
+            inp = chainer.Variable(inp, volatile=volatile)
+            inp.to_gpu(gpu)
+            return inp
         if xp is None:
             if self.model_is_cpu_mode():
                 inp = np.asarray(X, dtype=dtype)
