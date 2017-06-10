@@ -149,9 +149,9 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                         tmp_x.append(img)
                         tmp_t.append(t[i])
                 tmp_x = Da.zero_padding(tmp_x)
-                x = model.prepare_input(tmp_x, dtype=np.float32, volatile=False)
-                t = model.prepare_input(tmp_t, dtype=np.int32, volatile=False)
-                n_img = int(float(x.data.shape[0]) / n_parallel)
+                n_img = int(float(len(tmp_x)) / n_parallel)
+                x = models[0].prepare_input(tmp_x, dtype=np.float32, volatile=False)
+                t = models[0].prepare_input(tmp_t, dtype=np.int32, volatile=False)
                 # parallely calculate loss
                 losses = Parallel(n_jobs=len(n_parallel))(delayed(calculate_loss)(models[i], x[i * n_img: (i + 1) * n_img], t[i * n_img: (i + 1) * n_img], True, train_batch_divide * len(models)) for i in six.moves.range(len(models)))
                 # backward
