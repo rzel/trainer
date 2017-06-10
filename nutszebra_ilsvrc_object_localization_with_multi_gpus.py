@@ -39,7 +39,7 @@ async def calculate_loss_and_accuracy(models, X, T, train, divider=1.0):
 
 
 async def backward(losses):
-    def _backward(loss):
+    async def _backward(loss):
         loss.backward()
         return True
     cors = [_backward(loss) for loss in losses]
@@ -48,7 +48,7 @@ async def backward(losses):
 
 
 async def addgrads(model_teacher, model_students):
-    def _addgrads(model_teacher, model_student):
+    async def _addgrads(model_teacher, model_student):
         model_teacher.addgrads(model_student)
         return True
     cors = [_addgrads(model_teacher, model_student) for model_student in model_students]
@@ -57,7 +57,7 @@ async def addgrads(model_teacher, model_students):
 
 
 def copyparams(model_teacher, model_students):
-    def _copyparams(model_teacher, model_student):
+    async def _copyparams(model_teacher, model_student):
         model_student.copyparams(model_teacher)
         return True
     cors = [_copyparams(model_teacher, model_student) for model_student in model_students]
