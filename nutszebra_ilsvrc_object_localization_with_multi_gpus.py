@@ -52,16 +52,16 @@ async def addgrads(model_teacher, model_students):
         model_teacher.addgrads(model_student)
         return True
     cors = [_addgrads(model_teacher, model_student) for model_student in model_students]
-    results = await asyncio.gather(*cors)
+    done, pending = await asyncio.wait(cors)
     return True
 
 
-def copyparams(model_teacher, model_students):
+async def copyparams(model_teacher, model_students):
     async def _copyparams(model_teacher, model_student):
         model_student.copyparams(model_teacher)
         return True
     cors = [_copyparams(model_teacher, model_student) for model_student in model_students]
-    results = asyncio.gather(*cors)
+    done, pending = await asyncio.wait(cors)
     return True
 
 
