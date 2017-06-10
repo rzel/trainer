@@ -25,10 +25,13 @@ async def calculate_loss_and_accuracy(models, X, T, train, divider=1.0):
         t = model.prepare_input(t, dtype=np.int32, volatile=not train, gpu=model._device_id)
         y = model(x, train=train)
         loss = model.calc_loss(y, t) / divider
+        accuracy = model.accuracy_n(y, t, n=5)
+        # convert to hashable objects
+        accuracy = [(key, value) for key, value in accuracy.items()]
         if train is True:
             loss.backward()
         loss.to_cpu()
-        return float(loss.data), model.accuracy_n(y, t, n=5)
+        return float(loss.data), accuracy
     n_img = int(float(len(X)) / len(models))
     cors = [execute(models[i], X[i * n_img: (i + 1) * n_img], T[i * n_img: (i + 1) * n_img], train, divider) for i in six.moves.range(len(models))]
     done, pending = await asyncio.wait(cors)
