@@ -35,7 +35,7 @@ async def calculate_loss_and_accuracy(models, X, T, train, divider=1.0):
     n_img = int(float(len(X)) / len(models))
     cors = [execute(models[i], X[i * n_img: (i + 1) * n_img], T[i * n_img: (i + 1) * n_img], train, divider) for i in six.moves.range(len(models))]
     done, pending = await asyncio.wait(cors)
-    return [d.result() for d in done]
+    return done, pending
 
 
 async def backward(losses):
