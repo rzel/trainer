@@ -43,11 +43,6 @@ def copyparams(model_teacher, model_student):
     model_student.copyparams(model_teacher)
 
 
-def calculate_loss_and_accuracy(model, x, y, t, divider=1.0, n=5):
-    y = model(x, train=False)
-    return model.calc_loss(y, t) / divider, model.accuracy_n(y, t, n=n)
-
-
 class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
 
     def __init__(self, models=None, optimizer=None, load_models=None, load_optimizer=None, load_log=None, load_data=None, da=nutszebra_data_augmentation.DataAugmentationNormalizeBigger, save_path='./', epoch=100, batch=128, gpus=(0, 1, 2, 3), start_epoch=1, train_batch_divide=2, test_batch_divide=2, small_sample_training=None):
