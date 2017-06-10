@@ -31,16 +31,31 @@ async def calculate_loss_and_accuracy(models, X, T, train, divider=1.0):
     return results
 
 
-def backward(loss):
-    loss.backward()
+async def backward(losses):
+    def _backward(loss):
+        loss.backward()
+        return True
+    cors = [_backward(loss) for loss in losses]
+    await asyncio.gather(*cors)
+    return True
 
 
-def addgrads(model_teacher, model_student):
-    model_teacher.addgrads(model_student)
+async def addgrads(model_teacher, model_students):
+    def _addgrads(model_teacher, model_student):
+        model_teacher.addgrads(model_student)
+        return True
+    cors = [_addgrads(model_teacher, model_student) for model_student in model_students]
+    await asyncio.gather(*cors)
+    return True
 
 
-def copyparams(model_teacher, model_student):
-    model_student.copyparams(model_teacher)
+def copyparams(model_teacher, model_students):
+    def _copyparams(model_teacher, model_student):
+        model_student.copyparams(model_teacher)
+        return True
+    cors = [_copyparams(model_teacher, model_student) for model_student in model_students]
+    await asyncio.gather(*cors)
+    return True
 
 
 class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
@@ -153,21 +168,18 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
 
                 tmp_x = Da.zero_padding(tmp_x)
                 n_img = int(float(len(tmp_x)) / n_parallel)
-                losses = calculate_loss_and_accuracy(models, tmp_x, tmp_t, True, n_img)
-                # x = models[0].prepare_input(tmp_x, dtype=np.float32, volatile=False)
-                # t = models[0].prepare_input(tmp_t, dtype=np.int32, volatile=False)
-                # parallely calculate loss
-                # losses = Parallel(n_jobs=n_parallel)(delayed(calculate_loss)(models[i], x[i * n_img: (i + 1) * n_img], t[i * n_img: (i + 1) * n_img], True, train_batch_divide * len(models)) for i in six.moves.range(len(models)))
+                # calculate loss and accuracy
+                losses, _ = list(six.moves.zip(*calculate_loss_and_accuracy(models, tmp_x, tmp_t, True, n_img)))
                 # backward
-                Parallel(n_jobs=len(n_parallel))(delayed(backward)(losses[i]) for i in six.moves.range(len(losses)))
+                backward(losses)
                 # accumulate grads
-                Parallel(n_jobs=len(n_parallel))(delayed(addgrads)(models[0], models[i + 1]) for i in six.moves.range(len(models[1:])))
+                addgrads(models[0], models[1:])
                 # to_cpu
                 [loss.to_cpu() for loss in losses]
                 sum_loss += np.sum([loss.data for loss in losses]) * data_length
             optimizer.update()
             # Synchronized update
-            Parallel(n_jobs=len(n_parallel))(delayed(copyparams)(models[0], models[i + 1]) for i in six.moves.range(len(models[1:])))
+            copyparams(models[0], models[1:])
         log({'loss': float(sum_loss)}, 'train_loss')
         print(log.train_loss())
 
