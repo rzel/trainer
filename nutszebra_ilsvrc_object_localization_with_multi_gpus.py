@@ -24,11 +24,15 @@ async def calculate_loss_and_accuracy(models, X, T, train, divider=1.0):
         x = model.prepare_input(x, dtype=np.float32, volatile=not train, gpu=model._device_id)
         t = model.prepare_input(t, dtype=np.int32, volatile=not train, gpu=model._device_id)
         y = model(x, train=train)
-        return model.calc_loss(y, t) / divider, model.accuracy_n(y, t, n=5)
+        loss = model.calc_loss(y, t) / divider
+        if train is True:
+            loss.backward()
+        loss.to_cpu()
+        return loss.data, model.accuracy_n(y, t, n=5)
     n_img = int(float(len(X)) / len(models))
     cors = [execute(models[i], X[i * n_img: (i + 1) * n_img], T[i * n_img: (i + 1) * n_img], train, divider) for i in six.moves.range(len(models))]
     done, pending = await asyncio.wait(cors)
-    return [d.result() for d in done] 
+    return [d.result() for d in done]
 
 
 async def backward(losses):
