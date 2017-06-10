@@ -20,7 +20,7 @@ utility = nutszebra_utility.Utility()
 
 
 async def calculate_loss_and_accuracy(models, X, T, train, divider=1.0):
-    def execute(model, x, t, train, divider):
+    async def execute(model, x, t, train, divider):
         x = model.prepare_input(x, dtype=np.float32, volatile=not train, gpu=model._device_id)
         t = model.prepare_input(t, dtype=np.int32, volatile=not train, gpu=model._device_id)
         y = model(x, train=train)
