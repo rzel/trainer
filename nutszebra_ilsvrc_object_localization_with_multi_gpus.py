@@ -24,7 +24,7 @@ async def calculate_loss_and_accuracy(models, X, T, train, divider=1.0):
         x = model.prepare_input(x, dtype=np.float32, volatile=not train)
         t = model.prepare_input(t, dtype=np.int32, volatile=not train)
         y = model(x, train=train)
-        return model.calc_loss(y, t) / divider
+        return model.calc_loss(y, t) / divider, model.accuracy_n(y, t, n=5)
     n_img = int(float(len(X)) / len(models))
     cors = [execute(models[i], X[i * n_img: (i + 1) * n_img], T[i * n_img: (i + 1) * n_img], train, divider) for i in six.moves.range(len(models))]
     results = await asyncio.gather(*cors)
