@@ -174,7 +174,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 tmp_x = Da.zero_padding(tmp_x)
                 n_img = int(float(len(tmp_x)) / n_parallel)
                 # calculate loss and accuracy
-                results = loop.run_until_complete(calculate_loss_and_accuracy(models, tmp_x, tmp_t, True, n_parallel * train_batch_divide))
+                results = loop.run_until_complete(calculate_loss(models, tmp_x, tmp_t, True, n_parallel * train_batch_divide))
                 loss = np.sum([float(r.result()) for r in results])
                 # accumulate grads
                 loop.run_until_complete(addgrads(models[0], models[1:]))
