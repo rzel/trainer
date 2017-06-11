@@ -10,7 +10,7 @@ import nutszebra_preprocess_picture
 import nutszebra_data_augmentation_picture
 import nutszebra_data_augmentation
 import nutszebra_basic_print
-import asyncio
+from multiprocessing import Pool
 
 Da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 sampling = nutszebra_sampling.Sampling()
@@ -19,8 +19,8 @@ da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 utility = nutszebra_utility.Utility()
 
 
-async def calculate_loss(models, X, T, train, divider=1.0):
-    async def execute(model, x, t, train, divider):
+def calculate_loss(models, X, T, train, divider=1.0):
+    def execute(model, x, t, train, divider):
         x = model.prepare_input(x, dtype=np.float32, volatile=not train, gpu=model._device_id)
         t = model.prepare_input(t, dtype=np.int32, volatile=not train, gpu=model._device_id)
         y = model(x, train=train)
@@ -29,36 +29,42 @@ async def calculate_loss(models, X, T, train, divider=1.0):
             loss.backward()
         loss.to_cpu()
         return float(loss.data)
+
+    def wrap_execute(arg):
+        return execute(*arg)
+
     n_img = int(float(len(X)) / len(models))
-    cors = [execute(models[i], X[i * n_img: (i + 1) * n_img], T[i * n_img: (i + 1) * n_img], train, divider) for i in six.moves.range(len(models))]
-    done, pending = await asyncio.wait(cors)
-    return done
+    args = [(models[i], X[i * n_img: (i + 1) * n_img], T[i * n_img: (i + 1) * n_img], train, divider) for i in six.moves.range(len(models))]
+
+    pool = Pool(len(models))
+    return pool.map(wrap_execute, args)
 
 
-async def backward(losses):
-    async def _backward(loss):
-        loss.backward()
-        return True
-    cors = [_backward(loss) for loss in losses]
-    results = await asyncio.gather(*cors)
-    return True
-
-
-async def addgrads(model_teacher, model_students):
-    async def _addgrads(model_teacher, model_student):
+def addgrads(model_teacher, model_students):
+    def _addgrads(model_teacher, model_student):
         model_teacher.addgrads(model_student)
         return True
-    cors = [_addgrads(model_teacher, model_student) for model_student in model_students]
-    done, pending = await asyncio.wait(cors)
+
+    def wrap_addgrads(arg):
+        return _addgrads(*arg)
+
+    args = [(model_teacher, model_student) for model_student in model_students]
+    pool = Pool(len(model_student))
+    pool.map(wrap_addgrads, args)
     return True
 
 
-async def copyparams(model_teacher, model_students):
-    async def _copyparams(model_teacher, model_student):
+def copyparams(model_teacher, model_students):
+    def _copyparams(model_teacher, model_student):
         model_student.copyparams(model_teacher)
         return True
-    cors = [_copyparams(model_teacher, model_student) for model_student in model_students]
-    done, pending = await asyncio.wait(cors)
+
+    def wrap_copyparams(arg):
+        return _copyparams(*arg)
+
+    args = [(model_teacher, model_student) for model_student in model_students]
+    pool = Pool(len(model_students))
+    pool.map(wrap_copyparams, args)
     return True
 
 
@@ -156,7 +162,6 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         progressbar = utility.create_progressbar(int(len(train_x) / batch), desc='train', stride=1)
         n_parallel = len(models)
         # train start
-        loop = asyncio.get_event_loop()
         for _, indices in six.moves.zip(progressbar, yielder):
             [model.cleargrads() for model in models]
             for ii in six.moves.range(0, len(indices), batch_of_batch):
@@ -172,16 +177,15 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                         tmp_t.append(t[i])
 
                 tmp_x = Da.zero_padding(tmp_x)
-                n_img = int(float(len(tmp_x)) / n_parallel)
                 # calculate loss and accuracy
-                results = loop.run_until_complete(calculate_loss(models, tmp_x, tmp_t, True, n_parallel * train_batch_divide))
+                results = calculate_loss(models, tmp_x, tmp_t, True, n_parallel * train_batch_divide)
                 loss = np.sum([float(r.result()) for r in results])
                 # accumulate grads
-                loop.run_until_complete(addgrads(models[0], models[1:]))
-                sum_loss += loss
+                addgrads(models[0], models[1:])
+                sum_loss += loss * data_length
             optimizer.update()
             # Synchronized update
-            loop.run_until_complete(copyparams(models[0], models[1:]))
+            copyparams(models[0], models[1:])
         log({'loss': float(sum_loss)}, 'train_loss')
         print(log.train_loss())
 
@@ -220,14 +224,14 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                     tmp_t.append(t[i])
             data_length = len(tmp_x)
             tmp_x = Da.zero_padding(tmp_x)
-            x = models[0].prepare_input(tmp_x, dtype=np.float32, volatile=True)
-            n_img = int(float(x.data.shape[0]) / n_parallel)
-            # parallely calculate loss
-            losses_and_accuracy = Parallel(n_jobs=n_parallel)(delayed(calculate_loss_and_accuracy)(models[i], x[i * n_img: (i + 1) * n_img], t[i * n_img: (i + 1) * n_img], False, test_batch_divide * len(models)) for i in six.moves.range(len(models)))
-            losses, accuracies = list(zip(*losses_and_accuracy))
-            # to_cpu
-            [loss.to_cpu() for loss in losses]
-            sum_loss += np.sum([loss.data for loss in losses]) * data_length
+            # x = models[0].prepare_input(tmp_x, dtype=np.float32, volatile=True)
+            # n_img = int(float(x.data.shape[0]) / n_parallel)
+            # # parallely calculate loss
+            # losses_and_accuracy = Parallel(n_jobs=n_parallel)(delayed(calculate_loss_and_accuracy)(models[i], x[i * n_img: (i + 1) * n_img], t[i * n_img: (i + 1) * n_img], False, test_batch_divide * len(models)) for i in six.moves.range(len(models)))
+            # losses, accuracies = list(zip(*losses_and_accuracy))
+            # # to_cpu
+            # [loss.to_cpu() for loss in losses]
+            # sum_loss += np.sum([loss.data for loss in losses]) * data_length
             for accuracy in accuracies:
                 tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy = accuracy
                 for key in tmp_accuracy:
