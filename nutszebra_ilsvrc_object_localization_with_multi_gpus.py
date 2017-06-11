@@ -39,7 +39,9 @@ class Execute(object):
 
     def execute(self, args, n): 
         p = Pool(n)
-        losses = p.map(self, args)
+        losses = p.starmap(self, args)
+        p.close()
+        p.join()
         return losses
 
 
