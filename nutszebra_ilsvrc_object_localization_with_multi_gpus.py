@@ -31,7 +31,7 @@ def _execute(model, x, t, train, divider):
     return float(loss.data)
 
 
-def execute(arg):
+def eexecute(arg):
     # return self._execute(*arg)
     return True
 
@@ -43,7 +43,7 @@ class Execute(object):
 
     def execute(self, args, n): 
         p = Pool(n)
-        losses = p.starmap(execute, args)
+        losses = p.starmap(eexecute, args)
         p.close()
         p.join()
         return losses
