@@ -39,7 +39,8 @@ class Execute(object):
 
     def execute(self, args, n): 
         p = Pool(n)
-        return p.map(self, args)
+        losses = p.map(self, args)
+        return losses
 
 
 def calculate_loss(models, X, T, train, divider=1.0):
