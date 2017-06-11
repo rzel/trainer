@@ -149,7 +149,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
     def wrap_execute(self, arg):
         return self._execute(*arg)
 
-    def execute(self, arg, n): 
+    def execute(self, args, n): 
         p = Pool(n)
         return p.map(self.wrap_execute, args)
 
