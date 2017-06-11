@@ -36,7 +36,7 @@ def _execute(ff, i, train, divider):
 
 
 def eexecute(arg):
-    return self._execute(*arg)
+    return _execute(*arg)
 
 
 class Execute(object):
