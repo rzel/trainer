@@ -28,17 +28,23 @@ Divider = []
 Train = []
 
 
-def retrieve(i):
-    return M[i].__call__, X[i], T[i]
+def _addgrads(i):
+    M[0].addgrads(M[i])
+    return True
 
 
-def _execute(i):
-    model, x, t = retrieve(i)
-    y = model(x, train=train)
+def _copyparams(i):
+    M[i].copyparams(M[0])
+    return True
+
+
+def _forward_and_backward(i):
+    model, x, t = M[i], X[i], T[i]
+    y = model(x, train=Train[0])
     loss = Loss[i](y, t) / Divider[0]
     loss.backward()
     loss.to_cpu()
-    return float(loss.data) 
+    return float(loss.data)
 
 
 class Execute(object):
@@ -46,48 +52,12 @@ class Execute(object):
     def __init__(self):
         pass
 
-    def execute(self, n):
-        p = Pool(n)
-        losses = p.starmap(_execute, list(six.moves.range(args)))
+    def execute(self, func, indices):
+        p = Pool(len(indices))
+        losses = p.starmap(func, indices)
         p.close()
         p.join()
         return losses
-
-
-def calculate_loss(models, X, T, train, divider=1.0):
-    n_img = int(float(len(X)) / len(models))
-    args = [(models[i], X[i * n_img: (i + 1) * n_img], T[i * n_img: (i + 1) * n_img], train, divider) for i in six.moves.range(len(models))]
-
-    pool = Pool(len(models))
-    return pool.map(wrap_execute, args)
-
-
-def addgrads(model_teacher, model_students):
-    def _addgrads(model_teacher, model_student):
-        model_teacher.addgrads(model_student)
-        return True
-
-    def wrap_addgrads(arg):
-        return _addgrads(*arg)
-
-    args = [(model_teacher, model_student) for model_student in model_students]
-    pool = Pool(len(model_student))
-    pool.map(wrap_addgrads, args)
-    return True
-
-
-def copyparams(model_teacher, model_students):
-    def _copyparams(model_teacher, model_student):
-        model_student.copyparams(model_teacher)
-        return True
-
-    def wrap_copyparams(arg):
-        return _copyparams(*arg)
-
-    args = [(model_teacher, model_student) for model_student in model_students]
-    pool = Pool(len(model_students))
-    pool.map(wrap_copyparams, args)
-    return True
 
 
 class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
@@ -188,6 +158,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         Train.append(True)
         Divider.clear()
         Divider.append(n_parallel * train_batch_divide)
+        exe = Execute()
         for _, indices in six.moves.zip(progressbar, yielder):
             [model.cleargrads() for model in models]
             for ii in six.moves.range(0, len(indices), batch_of_batch):
@@ -217,15 +188,14 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                     T.append(t)
                     M.append(model)
                     Loss.append(model.calc_loss)
-                exe = Execute()
-                loss = np.sum(exe.execute(len(models)) )
+                loss = np.sum(exe.execute(_forward_and_backward, list(six.moves.range(len(models)))))
                 # results = calculate_loss(models, tmp_x, tmp_t, True, n_parallel * train_batch_divide)
                 # accumulate grads
-                addgrads(models[0], models[1:])
+                exe.execute(_addgrads, [i + 1 for i in six.moves.range(len(models) - 1)])
                 sum_loss += loss * data_length
             optimizer.update()
             # Synchronized update
-            copyparams(models[0], models[1:])
+            exe.execute(_copyparams, [i + 1 for i in six.moves.range(len(models) - 1)])
         log({'loss': float(sum_loss)}, 'train_loss')
         print(log.train_loss())
 
