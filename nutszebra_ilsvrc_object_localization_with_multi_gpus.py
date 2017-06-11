@@ -55,7 +55,6 @@ class Execute(object):
         p = Pool(len(indices))
         losses = p.starmap(func, indices)
         p.close()
-        p.join()
         return losses
 
 
