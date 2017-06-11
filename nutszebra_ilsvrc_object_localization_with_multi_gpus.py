@@ -20,7 +20,7 @@ da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 utility = nutszebra_utility.Utility()
 
 
-def _execute(self, model, x, t, train, divider):
+def _execute(model, x, t, train, divider):
     x = model.prepare_input(x, dtype=np.float32, volatile=not train, gpu=model._device_id)
     t = model.prepare_input(t, dtype=np.int32, volatile=not train, gpu=model._device_id)
     y = model(x, train=train)
