@@ -10,7 +10,8 @@ import nutszebra_preprocess_picture
 import nutszebra_data_augmentation_picture
 import nutszebra_data_augmentation
 import nutszebra_basic_print
-from multiprocessing import Pool
+import multiprocessing
+multiprocessing.set_start_method('forkserver')
 
 Da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 sampling = nutszebra_sampling.Sampling()
@@ -52,7 +53,7 @@ class Execute(object):
         pass
 
     def execute(self, func, indices):
-        p = Pool(len(indices))
+        p = multiprocessing.Pool(len(indices))
         losses = p.starmap(func, indices)
         p.close()
         return losses
