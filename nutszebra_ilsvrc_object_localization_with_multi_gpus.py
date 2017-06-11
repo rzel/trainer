@@ -19,19 +19,6 @@ da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 utility = nutszebra_utility.Utility()
 
 
-def execute(model, x, t, train, divider):
-    x = model.prepare_input(x, dtype=np.float32, volatile=not train, gpu=model._device_id)
-    t = model.prepare_input(t, dtype=np.int32, volatile=not train, gpu=model._device_id)
-    y = model(x, train=train)
-    loss = model.calc_loss(y, t) / divider
-    if train is True:
-        loss.backward()
-    loss.to_cpu()
-    return float(loss.data)
-
-
-def wrap_execute(arg):
-    return execute(*arg)
 
 
 def calculate_loss(models, X, T, train, divider=1.0):
@@ -149,6 +136,23 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             serializers.load_npz(load_model, model)
         model.check_gpu(gpu)
 
+    def _execute(self, model, x, t, train, divider):
+        x = model.prepare_input(x, dtype=np.float32, volatile=not train, gpu=model._device_id)
+        t = model.prepare_input(t, dtype=np.int32, volatile=not train, gpu=model._device_id)
+        y = model(x, train=train)
+        loss = model.calc_loss(y, t) / divider
+        if train is True:
+            loss.backward()
+        loss.to_cpu()
+        return float(loss.data)
+
+    def wrap_execute(self, arg):
+        return self._execute(*arg)
+
+    def execute(self, arg, n): 
+        p = Pool(n)
+        return pool.map(self.wrap_execute, args)
+
     def train_one_epoch(self):
         # initialization
         log = self.log
@@ -164,7 +168,6 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         progressbar = utility.create_progressbar(int(len(train_x) / batch), desc='train', stride=1)
         n_parallel = len(models)
         # train start
-        pool = Pool(len(models))
         for _, indices in six.moves.zip(progressbar, yielder):
             [model.cleargrads() for model in models]
             for ii in six.moves.range(0, len(indices), batch_of_batch):
@@ -183,7 +186,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 # calculate loss and accuracy
                 n_img = int(float(len(tmp_x)) / len(models))
                 args = [(models[i], tmp_x[i * n_img: (i + 1) * n_img], tmp_t[i * n_img: (i + 1) * n_img], True, n_parallel * train_batch_divide) for i in six.moves.range(len(models))]
-                losses = pool.map(wrap_execute, args)
+                losses = self.execute(args, len(models)) 
                 # results = calculate_loss(models, tmp_x, tmp_t, True, n_parallel * train_batch_divide)
                 loss = np.sum([float(r.result()) for r in results])
                 # accumulate grads
