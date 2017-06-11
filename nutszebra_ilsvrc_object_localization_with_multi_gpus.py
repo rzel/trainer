@@ -57,7 +57,6 @@ class Execute(object):
     def execute(self, func, indices):
         p = multiprocessing.Pool(len(indices))
         losses = p.starmap(func, indices)
-        p.close()
         return losses
 
 
