@@ -209,7 +209,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                     X.append(x)
                     T.append(t)
                     M.append(model)
-                args = tuple([(ff, i, True, n_parallel * train_batch_divide) for i in six.moves.range(len(models))])
+                args = [(ff, i, True, n_parallel * train_batch_divide) for i in six.moves.range(len(models))]
                 exe = Execute()
                 losses = exe.execute(args, len(models)) 
                 # results = calculate_loss(models, tmp_x, tmp_t, True, n_parallel * train_batch_divide)
