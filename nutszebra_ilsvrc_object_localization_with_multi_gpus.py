@@ -11,7 +11,7 @@ import nutszebra_data_augmentation_picture
 import nutszebra_data_augmentation
 import nutszebra_basic_print
 import multiprocessing
-multiprocessing.set_start_method('forkserver')
+multiprocessing.set_start_method('fork')
 
 Da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 sampling = nutszebra_sampling.Sampling()
@@ -55,11 +55,12 @@ class Execute(object):
         pass
 
     def execute(self, func, indices):
-        # results = p.starmap(func, indices)
-        results = []
-        for i in indices:
-            results.append(func(i[0]))
-        return results 
+        p = multiprocessing.Pool(len(indices))
+        results = p.starmap(func, indices)
+        # results = []
+        # for i in indices:
+        #     results.append(func(i[0]))
+        return results
 
 
 class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
