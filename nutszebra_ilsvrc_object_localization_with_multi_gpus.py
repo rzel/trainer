@@ -1,4 +1,5 @@
 import six
+
 import itertools
 import numpy as np
 from chainer import serializers
@@ -19,28 +20,29 @@ da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 utility = nutszebra_utility.Utility()
 
 
+def _execute(self, model, x, t, train, divider):
+    x = model.prepare_input(x, dtype=np.float32, volatile=not train, gpu=model._device_id)
+    t = model.prepare_input(t, dtype=np.int32, volatile=not train, gpu=model._device_id)
+    y = model(x, train=train)
+    loss = model.calc_loss(y, t) / divider
+    if train is True:
+        loss.backward()
+    loss.to_cpu()
+    return float(loss.data)
+
+
+def execute(arg):
+    return self._execute(*arg)
+
+
 class Execute(object):
 
     def __init__(self):
         pass
 
-    def _execute(self, model, x, t, train, divider):
-        x = model.prepare_input(x, dtype=np.float32, volatile=not train, gpu=model._device_id)
-        t = model.prepare_input(t, dtype=np.int32, volatile=not train, gpu=model._device_id)
-        y = model(x, train=train)
-        loss = model.calc_loss(y, t) / divider
-        if train is True:
-            loss.backward()
-        loss.to_cpu()
-        return float(loss.data)
-
-    def __call__(self, arg):
-        # return self._execute(*arg)
-        return None
-
     def execute(self, args, n): 
         p = Pool(n)
-        losses = p.starmap(self, args)
+        losses = p.starmap(execute, args)
         p.close()
         p.join()
         return losses
