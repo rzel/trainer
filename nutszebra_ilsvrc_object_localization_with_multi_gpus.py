@@ -18,6 +18,7 @@ preprocess = nutszebra_preprocess_picture.PreprocessPicture()
 da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 utility = nutszebra_utility.Utility()
 
+
 def execute(model, x, t, train, divider):
     x = model.prepare_input(x, dtype=np.float32, volatile=not train, gpu=model._device_id)
     t = model.prepare_input(t, dtype=np.int32, volatile=not train, gpu=model._device_id)
@@ -163,6 +164,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         progressbar = utility.create_progressbar(int(len(train_x) / batch), desc='train', stride=1)
         n_parallel = len(models)
         # train start
+        pool = Pool(len(models))
         for _, indices in six.moves.zip(progressbar, yielder):
             [model.cleargrads() for model in models]
             for ii in six.moves.range(0, len(indices), batch_of_batch):
@@ -179,7 +181,10 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
 
                 tmp_x = Da.zero_padding(tmp_x)
                 # calculate loss and accuracy
-                results = calculate_loss(models, tmp_x, tmp_t, True, n_parallel * train_batch_divide)
+                n_img = int(float(len(tmp_x)) / len(models))
+                args = [(models[i], tmp_x[i * n_img: (i + 1) * n_img], tmp_t[i * n_img: (i + 1) * n_img], True, n_parallel * train_batch_divide) for i in six.moves.range(len(models))]
+                losses = pool.map(wrap_execute, args)
+                # results = calculate_loss(models, tmp_x, tmp_t, True, n_parallel * train_batch_divide)
                 loss = np.sum([float(r.result()) for r in results])
                 # accumulate grads
                 addgrads(models[0], models[1:])
