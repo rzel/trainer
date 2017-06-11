@@ -23,17 +23,22 @@ utility = nutszebra_utility.Utility()
 X = []
 T = []
 M = []
+Loss = []
+Divider = []
+Train = []
 
 
-def ff(i):
+def retrieve(i):
     return M[i].__call__, X[i], T[i]
 
 
-def _execute(i, train, divider):
-    i, train, divider = arg
-    model, x, t = ff(i)
+def _execute(i):
+    model, x, t = retrieve(i)
     y = model(x, train=train)
-    return 1.0
+    loss = Loss[i](y, t) / Divider[0]
+    loss.backward()
+    loss.to_cpu()
+    return float(loss.data) 
 
 
 class Execute(object):
@@ -41,9 +46,9 @@ class Execute(object):
     def __init__(self):
         pass
 
-    def execute(self, args, n):
+    def execute(self, n):
         p = Pool(n)
-        losses = p.starmap(_execute, args)
+        losses = p.starmap(_execute, list(six.moves.range(args)))
         p.close()
         p.join()
         return losses
@@ -179,6 +184,10 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         progressbar = utility.create_progressbar(int(len(train_x) / batch), desc='train', stride=1)
         n_parallel = len(models)
         # train start
+        Train.clear()
+        Train.append(True)
+        Divider.clear()
+        Divider.append(n_parallel * train_batch_divide)
         for _, indices in six.moves.zip(progressbar, yielder):
             [model.cleargrads() for model in models]
             for ii in six.moves.range(0, len(indices), batch_of_batch):
@@ -195,10 +204,11 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
 
                 tmp_x = Da.zero_padding(tmp_x)
                 # calculate loss and accuracy
-                n_img = int(float(len(tmp_x)) / len(models))
                 X.clear()
                 T.clear()
                 M.clear()
+                Loss.clear()
+                n_img = int(float(len(tmp_x)) / len(models))
                 for i in six.moves.range(len(models)):
                     model = models[i]
                     x = model.prepare_input(tmp_x[i * n_img: (i + 1) * n_img], dtype=np.float32, volatile=False, gpu=model._device_id)
@@ -206,11 +216,10 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                     X.append(x)
                     T.append(t)
                     M.append(model)
-                args = [(i, True, n_parallel * train_batch_divide) for i in six.moves.range(len(models))]
+                    Loss.append(model.calc_loss)
                 exe = Execute()
-                losses = exe.execute(args, len(models)) 
+                loss = np.sum(exe.execute(len(models)) )
                 # results = calculate_loss(models, tmp_x, tmp_t, True, n_parallel * train_batch_divide)
-                loss = np.sum([float(r.result()) for r in results])
                 # accumulate grads
                 addgrads(models[0], models[1:])
                 sum_loss += loss * data_length
