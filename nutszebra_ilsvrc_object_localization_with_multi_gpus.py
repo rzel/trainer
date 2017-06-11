@@ -39,7 +39,6 @@ def _copyparams(i):
 
 
 def _forward_and_backward(i):
-    model.to_gpu(model._device_id)
     model, x, t = M[i], X[i], T[i]
     x = model.prepare_input(x, dtype=np.float32, volatile=False, gpu=model._device_id)
     t = model.prepare_input(t, dtype=np.int32, volatile=False, gpu=model._device_id)
@@ -56,9 +55,11 @@ class Execute(object):
         pass
 
     def execute(self, func, indices):
-        p = multiprocessing.Pool(len(indices))
-        losses = p.starmap(func, indices)
-        return losses
+        # results = p.starmap(func, indices)
+        results = []
+        for i in indices:
+            results.append(func(i[0]))
+        return results 
 
 
 class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
