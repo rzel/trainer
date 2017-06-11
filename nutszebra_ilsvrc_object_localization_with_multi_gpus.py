@@ -39,6 +39,7 @@ def _copyparams(i):
 
 
 def _forward_and_backward(i):
+    model.to_gpu(model._device_id)
     model, x, t = M[i], X[i], T[i]
     x = model.prepare_input(x, dtype=np.float32, volatile=False, gpu=model._device_id)
     t = model.prepare_input(t, dtype=np.int32, volatile=False, gpu=model._device_id)
