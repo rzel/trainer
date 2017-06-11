@@ -35,7 +35,8 @@ class Execute(object):
         return float(loss.data)
 
     def __call__(self, arg):
-        return self._execute(*arg)
+        # return self._execute(*arg)
+        return None
 
     def execute(self, args, n): 
         p = Pool(n)
