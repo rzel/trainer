@@ -196,7 +196,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 tmp_x = Da.zero_padding(tmp_x)
                 # calculate loss and accuracy
                 n_img = int(float(len(tmp_x)) / len(models))
-                args = [(models[i], tmp_x[i * n_img: (i + 1) * n_img], tmp_t[i * n_img: (i + 1) * n_img], True, n_parallel * train_batch_divide) for i in six.moves.range(len(models))]
+                args = tuple([(models[i], tmp_x[i * n_img: (i + 1) * n_img], tmp_t[i * n_img: (i + 1) * n_img], True, n_parallel * train_batch_divide) for i in six.moves.range(len(models))])
                 exe = Execute()
                 losses = exe.execute(args, len(models)) 
                 # results = calculate_loss(models, tmp_x, tmp_t, True, n_parallel * train_batch_divide)
