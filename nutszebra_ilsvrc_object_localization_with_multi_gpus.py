@@ -20,7 +20,8 @@ da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 utility = nutszebra_utility.Utility()
 
 
-def _execute(model, x, t, train, divider):
+def _execute(ff, i, train, divider):
+    model, x, t = ff(i)
     y = model(x, train=train)
     return 1.0
 
@@ -34,7 +35,7 @@ class Execute(object):
     def __init__(self):
         pass
 
-    def execute(self, args, n): 
+    def execute(self, args, n):
         p = Pool(n)
         losses = p.starmap(eexecute, args)
         p.close()
@@ -197,7 +198,10 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                     t = model.prepare_input(tmp_t[i * n_img: (i + 1) * n_img], dtype=np.int32, volatile=False, gpu=model._device_id)
                     X.append(x)
                     T.append(t)
-                args = tuple([(models[i].__call__, X[i], T[i], True, n_parallel * train_batch_divide) for i in six.moves.range(len(models))])
+
+                def ff(i):
+                    return models[i].__call__, X[i], T[i]
+                args = tuple([(ff, i, True, n_parallel * train_batch_divide) for i in six.moves.range(len(models))])
                 exe = Execute()
                 losses = exe.execute(args, len(models)) 
                 # results = calculate_loss(models, tmp_x, tmp_t, True, n_parallel * train_batch_divide)
