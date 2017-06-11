@@ -20,6 +20,15 @@ da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 utility = nutszebra_utility.Utility()
 
 
+X = []
+T = []
+M = []
+
+
+def ff(i):
+    return M[i].__call__, X[i], T[i]
+
+
 def _execute(ff, i, train, divider):
     model, x, t = ff(i)
     y = model(x, train=train)
@@ -190,17 +199,16 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 tmp_x = Da.zero_padding(tmp_x)
                 # calculate loss and accuracy
                 n_img = int(float(len(tmp_x)) / len(models))
-                X = []
-                T = []
+                X.clear()
+                T.clear()
+                M.clear()
                 for i in six.moves.range(len(models)):
                     model = models[i]
                     x = model.prepare_input(tmp_x[i * n_img: (i + 1) * n_img], dtype=np.float32, volatile=False, gpu=model._device_id)
                     t = model.prepare_input(tmp_t[i * n_img: (i + 1) * n_img], dtype=np.int32, volatile=False, gpu=model._device_id)
                     X.append(x)
                     T.append(t)
-
-                def ff(i):
-                    return models[i].__call__, X[i], T[i]
+                    M.append(model)
                 args = tuple([(ff, i, True, n_parallel * train_batch_divide) for i in six.moves.range(len(models))])
                 exe = Execute()
                 losses = exe.execute(args, len(models)) 
