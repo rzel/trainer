@@ -29,7 +29,7 @@ def ff(i):
     return M[i].__call__, X[i], T[i]
 
 
-def _execute(arg):
+def _execute(i, train, divider):
     i, train, divider = arg
     model, x, t = ff(i)
     y = model(x, train=train)
