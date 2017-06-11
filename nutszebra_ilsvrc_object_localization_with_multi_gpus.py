@@ -1,5 +1,4 @@
 import six
-
 import itertools
 import numpy as np
 from chainer import serializers
@@ -188,14 +187,14 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                     T.append(t)
                     M.append(model)
                     Loss.append(model.calc_loss)
-                loss = np.sum(exe.execute(_forward_and_backward, list(six.moves.range(len(models)))))
+                loss = np.sum(exe.execute(_forward_and_backward, [(i,) for i in six.moves.range(len(models))]))
                 # results = calculate_loss(models, tmp_x, tmp_t, True, n_parallel * train_batch_divide)
                 # accumulate grads
-                exe.execute(_addgrads, [i + 1 for i in six.moves.range(len(models) - 1)])
+                exe.execute(_addgrads, [(i + 1,) for i in six.moves.range(len(models) - 1)])
                 sum_loss += loss * data_length
             optimizer.update()
             # Synchronized update
-            exe.execute(_copyparams, [i + 1 for i in six.moves.range(len(models) - 1)])
+            exe.execute(_copyparams, [(i + 1,) for i in six.moves.range(len(models) - 1)])
         log({'loss': float(sum_loss)}, 'train_loss')
         print(log.train_loss())
 
