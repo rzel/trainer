@@ -30,7 +30,7 @@ def ff(i):
 
 
 def _execute(arg):
-    ff, i, train, divider = arg
+    i, train, divider = arg
     model, x, t = ff(i)
     y = model(x, train=train)
     return 1.0
@@ -206,7 +206,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                     X.append(x)
                     T.append(t)
                     M.append(model)
-                args = [[ff, i, True, n_parallel * train_batch_divide] for i in six.moves.range(len(models))]
+                args = [(i, True, n_parallel * train_batch_divide) for i in six.moves.range(len(models))]
                 exe = Execute()
                 losses = exe.execute(args, len(models)) 
                 # results = calculate_loss(models, tmp_x, tmp_t, True, n_parallel * train_batch_divide)
