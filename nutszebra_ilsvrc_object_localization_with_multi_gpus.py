@@ -11,7 +11,7 @@ import nutszebra_data_augmentation_picture
 import nutszebra_data_augmentation
 import nutszebra_basic_print
 import multiprocessing
-multiprocessing.set_start_method('forkserver')
+# multiprocessing.set_start_method('forkserver')
 
 Da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 sampling = nutszebra_sampling.Sampling()
@@ -40,6 +40,8 @@ def _copyparams(i):
 
 def _forward_and_backward(i):
     model, x, t = M[i], X[i], T[i]
+    x = model.prepare_input(x, dtype=np.float32, volatile=False, gpu=model._device_id)
+    t = model.prepare_input(t, dtype=np.int32, volatile=False, gpu=model._device_id)
     y = model(x, train=Train[0])
     loss = Loss[i](y, t) / Divider[0]
     loss.backward()
@@ -181,8 +183,8 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 n_img = int(float(len(tmp_x)) / len(models))
                 for i in six.moves.range(len(models)):
                     model = models[i]
-                    x = model.prepare_input(tmp_x[i * n_img: (i + 1) * n_img], dtype=np.float32, volatile=False, gpu=model._device_id)
-                    t = model.prepare_input(tmp_t[i * n_img: (i + 1) * n_img], dtype=np.int32, volatile=False, gpu=model._device_id)
+                    x = tmp_x[i * n_img: (i + 1) * n_img]
+                    t = tmp_t[i * n_img: (i + 1) * n_img]
                     X.append(x)
                     T.append(t)
                     M.append(model)
