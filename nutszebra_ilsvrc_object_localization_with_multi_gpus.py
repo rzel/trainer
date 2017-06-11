@@ -195,6 +195,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 exe.execute(_addgrads, [(i + 1,) for i in six.moves.range(len(models) - 1)])
                 sum_loss += loss * data_length
             optimizer.update()
+            print(M[0].conv_bn_relu.conv.W.data)
             # Synchronized update
             exe.execute(_copyparams, [(i + 1,) for i in six.moves.range(len(models) - 1)])
         log({'loss': float(sum_loss)}, 'train_loss')
