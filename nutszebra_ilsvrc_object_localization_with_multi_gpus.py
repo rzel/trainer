@@ -32,8 +32,7 @@ def _execute(model, x, t, train, divider):
 
 
 def eexecute(arg):
-    # return self._execute(*arg)
-    return True
+    return self._execute(*arg)
 
 
 class Execute(object):
@@ -196,7 +195,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 tmp_x = Da.zero_padding(tmp_x)
                 # calculate loss and accuracy
                 n_img = int(float(len(tmp_x)) / len(models))
-                args = tuple([(models[i], tmp_x[i * n_img: (i + 1) * n_img], tmp_t[i * n_img: (i + 1) * n_img], True, n_parallel * train_batch_divide) for i in six.moves.range(len(models))])
+                args = tuple([(models[i], tuple(tmp_x[i * n_img: (i + 1) * n_img]), tuple(tmp_t[i * n_img: (i + 1) * n_img]), True, n_parallel * train_batch_divide) for i in six.moves.range(len(models))])
                 exe = Execute()
                 losses = exe.execute(args, len(models)) 
                 # results = calculate_loss(models, tmp_x, tmp_t, True, n_parallel * train_batch_divide)
