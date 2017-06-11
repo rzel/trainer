@@ -11,7 +11,7 @@ import nutszebra_data_augmentation_picture
 import nutszebra_data_augmentation
 import nutszebra_basic_print
 import multiprocessing
-multiprocessing.set_start_method('fork')
+multiprocessing.set_start_method('spawn')
 
 Da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 sampling = nutszebra_sampling.Sampling()
