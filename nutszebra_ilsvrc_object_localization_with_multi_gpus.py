@@ -151,7 +151,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
 
     def execute(self, arg, n): 
         p = Pool(n)
-        return pool.map(self.wrap_execute, args)
+        return p.map(self.wrap_execute, args)
 
     def train_one_epoch(self):
         # initialization
