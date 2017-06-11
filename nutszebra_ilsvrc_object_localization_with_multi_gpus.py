@@ -32,7 +32,8 @@ def _execute(self, model, x, t, train, divider):
 
 
 def execute(arg):
-    return self._execute(*arg)
+    # return self._execute(*arg)
+    return True
 
 
 class Execute(object):
