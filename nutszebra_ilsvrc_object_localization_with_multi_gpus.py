@@ -29,14 +29,11 @@ def ff(i):
     return M[i].__call__, X[i], T[i]
 
 
-def _execute(ff, i, train, divider):
+def _execute(arg):
+    ff, i, train, divider = arg
     model, x, t = ff(i)
     y = model(x, train=train)
     return 1.0
-
-
-def eexecute(arg):
-    return _execute(*arg)
 
 
 class Execute(object):
@@ -46,7 +43,7 @@ class Execute(object):
 
     def execute(self, args, n):
         p = Pool(n)
-        losses = p.starmap(eexecute, args)
+        losses = p.starmap(_execute, args)
         p.close()
         p.join()
         return losses
