@@ -24,8 +24,8 @@ sampling = nutszebra_sampling.Sampling()
 preprocess = nutszebra_preprocess_picture.PreprocessPicture()
 da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 utility = nutszebra_utility.Utility()
-X = []
-T = []
+X = {}
+T = {} 
 Loss = []
 Divider = []
 Train = []
@@ -353,7 +353,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             self.model.cleargrads()
 
             train = Train[0]
-            x = self.model.prepare_input(X[self.gpus[0]], dtype=np.float32, volatile=not train, gpu=self.gpus[0])
+            x = self.model.prepare_input(X[self.gpus[1]], dtype=np.float32, volatile=not train, gpu=self.gpus[0])
             t = self.model.prepare_input(T[self.gpus[0]], dtype=np.int32, volatile=not train, gpu=self.gpus[0])
             y = self.model(x, train=train)
             loss = self.model.calc_loss(y, t) / Divider[0]
@@ -435,8 +435,8 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 for gpu in self.gpus:
                     x = tmp_x[i * n_img: (i + 1) * n_img]
                     t = tmp_t[i * n_img: (i + 1) * n_img]
-                    X.append(x)
-                    T.append(t)
+                    X[gpu] = x
+                    T[gpu] = t
                 self.update_core()
                 sum_loss += np.sum(Loss) * Divider[0] / data_length
         log({'loss': float(sum_loss)}, 'train_loss')
