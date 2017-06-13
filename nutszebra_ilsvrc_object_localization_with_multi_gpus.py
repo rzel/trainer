@@ -407,7 +407,8 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         batch_of_batch = int(batch / train_batch_divide)
         sum_loss = 0
         yielder = sampling.yield_random_batch_from_category(int(len(train_x) / batch), self.picture_number_at_each_categories, batch, shuffle=True)
-        progressbar = utility.create_progressbar(int(len(train_x) / batch), desc='train', stride=1)
+        # progressbar = utility.create_progressbar(int(len(train_x) / batch), desc='train', stride=1)
+        progressbar = six.moves.range(len(train_x) / batch)
         n_parallel = len(gpus)
         # train start
         Train.clear()
