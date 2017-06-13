@@ -234,7 +234,7 @@ def scatter_params(link, array):
 class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
 
     def __init__(self, model=None, optimizer=None, load_model=None, load_optimizer=None, load_log=None, load_data=None, da=nutszebra_data_augmentation.DataAugmentationNormalizeBigger, save_path='./', epoch=100, batch=128, gpus=(0, 1, 2, 3), start_epoch=1, train_batch_divide=2, test_batch_divide=2, small_sample_training=None):
-        self.models = model
+        self.model = model
         self.optimizer = optimizer
         self.load_model = load_model
         self.load_optimizers = load_optimizer
@@ -301,7 +301,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             log({'parameter': len(self.test_x)}, 'test_parameter')
             for i in six.moves.range(len(self.categories)):
                 log({'parameter': float((np.array(self.test_y) == i).sum())}, 'test_parameter_{}'.format(i))
-            log({'model': str(self.models)}, 'model')
+            log({'model': str(self.model)}, 'model')
         return log
 
     @staticmethod
@@ -327,7 +327,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             return
         self._initialized = True
 
-        self.models[0].cleargrads()
+        self.model.cleargrads()
         for i in six.moves.range(1, len(self.gpus)):
             pipe, worker_end = multiprocessing.Pipe()
             worker = _Worker(i, worker_end, self)
@@ -378,7 +378,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                                           nccl.NCCL_SUM,
                                           0,
                                           null_stream.ptr)
-                # copy grads, gg, to  self.models[0]
+                # copy grads, gg, to  self.model
                 scatter_grads(self.model, gg)
                 del gg
             self.optimizer.update()
@@ -399,7 +399,6 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
     def train_one_epoch(self):
         # initialization
         log = self.log
-        models = self.models
         train_x = self.train_x
         train_y = self.train_y
         batch = self.batch
@@ -446,7 +445,6 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
     def test_one_epoch(self):
         # initialization
         log = self.log
-        models = self.models
         test_x = self.test_x
         test_y = self.test_y
         batch = self.batch
