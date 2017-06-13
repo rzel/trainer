@@ -546,20 +546,12 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         for i in progressbar:
             x = test_x[i:i + batch_of_batch]
             t = test_y[i:i + batch_of_batch]
-            tmp_x = []
-            tmp_t = []
-            for i in six.moves.range(len(x)):
-                img, info = self.da.test(x[i])
-                if img is not None:
-                    tmp_x.append(img)
-                    tmp_t.append(t[i])
-            tmp_x = Da.zero_padding(tmp_x)
             X.clear()
             T.clear()
-            n_img = int(float(len(tmp_x)) / len(gpus))
+            n_img = int(float(len(x)) / len(gpus))
             for i in six.moves.range(len(gpus)):
-                X[gpus[i]] = tmp_x[i * n_img: (i + 1) * n_img]
-                T[gpus[i]] = tmp_t[i * n_img: (i + 1) * n_img]
+                X[gpus[i]] = x[i * n_img: (i + 1) * n_img]
+                T[gpus[i]] = t[i * n_img: (i + 1) * n_img]
             self.test_core()
             loss = np.sum(Loss)
             Loss.clear()
