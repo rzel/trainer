@@ -478,6 +478,9 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                     X[gpus[i]] = tmp_x[i * n_img: (i + 1) * n_img]
                     T[gpus[i]] = tmp_t[i * n_img: (i + 1) * n_img]
                 self.update_core()
+                loss = np.sum(Loss)
+                Loss.clear()
+                Loss.append(loss)
         sum_loss += np.sum(Loss)
         log({'loss': float(sum_loss)}, 'train_loss')
         print(log.train_loss())
@@ -525,14 +528,19 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 X[gpus[i]] = tmp_x[i * n_img: (i + 1) * n_img]
                 T[gpus[i]] = tmp_t[i * n_img: (i + 1) * n_img]
             self.test_core()
-
-        for tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy in six.moves.zip(Accuracy, Accuracy_5, Accuracy_false):
-            for key in tmp_accuracy:
-                sum_accuracy[key] += tmp_accuracy[key]
-            for key in tmp_5_accuracy:
-                sum_5_accuracy[key] += tmp_5_accuracy[key]
-            for key in tmp_false_accuracy:
-                false_accuracy[key] += tmp_false_accuracy[key]
+            loss = np.sum(Loss)
+            Loss.clear()
+            Loss.append(loss)
+            for tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy in six.moves.zip(Accuracy, Accuracy_5, Accuracy_false):
+                for key in tmp_accuracy:
+                    sum_accuracy[key] += tmp_accuracy[key]
+                for key in tmp_5_accuracy:
+                    sum_5_accuracy[key] += tmp_5_accuracy[key]
+                for key in tmp_false_accuracy:
+                    false_accuracy[key] += tmp_false_accuracy[key]
+            Accuracy.clear()
+            Accuracy_5.clear()
+            Accuracy_false.clear()
         # sum_loss
         sum_loss += np.sum(Loss)
         log({'loss': float(sum_loss)}, 'test_loss')
