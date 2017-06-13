@@ -41,11 +41,12 @@ https://github.com/chainer/chainer/blob/master/chainer/training/updaters/multipr
 
 class _Worker(multiprocessing.Process):
 
-    def __init__(self, process_id, pipe, model, gpus):
+    def __init__(self, process_id, pipe, model, gpus, da):
         super(_Worker, self).__init__()
         self.process_id = process_id
         self.pipe = pipe
         self.model = model
+        self.da = da
         self.device = gpus[process_id]
         self.number_of_devices = len(gpus)
 
@@ -70,9 +71,19 @@ class _Worker(multiprocessing.Process):
             if job == 'update':
                 # for reducing memory
                 self.model.cleargrads()
+                x = X[self.device]
+                t = T[self.device]
+                tmp_x = []
+                tmp_t = []
+                for i in six.moves.range(len(x)):
+                    img, info = self.da.train(x[i])
+                    if img is not None:
+                        tmp_x.append(img)
+                        tmp_t.append(t[i])
+                tmp_x = Da.zero_padding(tmp_x)
                 train = True
-                x = self.model.prepare_input(X[self.device], dtype=np.float32, volatile=not train, gpu=self.device)
-                t = self.model.prepare_input(T[self.device], dtype=np.int32, volatile=not train, gpu=self.device)
+                x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.device)
+                t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.device)
                 y = self.model(x, train=train)
                 loss = self.model.calc_loss(y, t) / Divider[0]
                 self.model.cleargrads()
@@ -109,6 +120,16 @@ class _Worker(multiprocessing.Process):
             if job == 'test':
                 # for reducing memory
                 self.model.cleargrads()
+                x = X[self.device]
+                t = T[self.device]
+                tmp_x = []
+                tmp_t = []
+                for i in six.moves.range(len(x)):
+                    img, info = self.da.test(x[i])
+                    if img is not None:
+                        tmp_x.append(img)
+                        tmp_t.append(t[i])
+                tmp_x = Da.zero_padding(tmp_x)
                 train = False
                 x = self.model.prepare_input(X[self.device], dtype=np.float32, volatile=not train, gpu=self.device)
                 t = self.model.prepare_input(T[self.device], dtype=np.int32, volatile=not train, gpu=self.device)
@@ -357,7 +378,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         self.model.cleargrads()
         for i in six.moves.range(1, len(self.gpus)):
             pipe, worker_end = multiprocessing.Pipe()
-            worker = _Worker(i, worker_end, self.model, self.gpus)
+            worker = _Worker(i, worker_end, self.model, self.gpus, self.da)
             worker.start()
             self._workers.append(worker)
             self._pipes.append(pipe)
@@ -376,9 +397,19 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         self.model.cleargrads()
         self._send_message(('update', None))
         with cuda.Device(self.gpus[0]):
+            x = X[self.gpus[0]]
+            t = T[self.gpus[0]]
+            tmp_x = []
+            tmp_t = []
+            for i in six.moves.range(len(x)):
+                img, info = self.da.train(x[i])
+                if img is not None:
+                    tmp_x.append(img)
+                    tmp_t.append(t[i])
+            tmp_x = Da.zero_padding(tmp_x)
             train = True
-            x = self.model.prepare_input(X[self.gpus[0]], dtype=np.float32, volatile=not train, gpu=self.gpus[0])
-            t = self.model.prepare_input(T[self.gpus[0]], dtype=np.int32, volatile=not train, gpu=self.gpus[0])
+            x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpus[0])
+            t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.gpus[0])
             y = self.model(x, train=train)
             loss = self.model.calc_loss(y, t) / Divider[0]
             loss.backward()
@@ -420,9 +451,19 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         with cuda.Device(self.gpus[0]):
             # For reducing memory
             self.model.cleargrads()
+            x = X[self.gpus[0]]
+            t = T[self.gpus[0]]
+            tmp_x = []
+            tmp_t = []
+            for i in six.moves.range(len(x)):
+                img, info = self.da.test(x[i])
+                if img is not None:
+                    tmp_x.append(img)
+                    tmp_t.append(t[i])
+            tmp_x = Da.zero_padding(tmp_x)
             train = False
-            x = self.model.prepare_input(X[self.gpus[0]], dtype=np.float32, volatile=not train, gpu=self.gpus[0])
-            t = self.model.prepare_input(T[self.gpus[0]], dtype=np.int32, volatile=not train, gpu=self.gpus[0])
+            x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpus[0])
+            t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.gpus[0])
             y = self.model(x, train=train)
             loss = self.model.calc_loss(y, t)
             tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy = self.model.accuracy_n(y, t, n=5)
@@ -463,20 +504,12 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             for ii in six.moves.range(0, len(indices), batch_of_batch):
                 x = train_x[indices[ii:ii + batch_of_batch]]
                 t = train_y[indices[ii:ii + batch_of_batch]]
-                tmp_x = []
-                tmp_t = []
-                for i in six.moves.range(len(x)):
-                    img, info = self.da.train(x[i])
-                    if img is not None:
-                        tmp_x.append(img)
-                        tmp_t.append(t[i])
-                tmp_x = Da.zero_padding(tmp_x)
                 X.clear()
                 T.clear()
-                n_img = int(float(len(tmp_x)) / len(gpus))
+                n_img = int(float(len(x)) / len(gpus))
                 for i in six.moves.range(len(gpus)):
-                    X[gpus[i]] = tmp_x[i * n_img: (i + 1) * n_img]
-                    T[gpus[i]] = tmp_t[i * n_img: (i + 1) * n_img]
+                    X[gpus[i]] = x[i * n_img: (i + 1) * n_img]
+                    T[gpus[i]] = t[i * n_img: (i + 1) * n_img]
                 self.update_core()
                 loss = np.sum(Loss)
                 Loss.clear()
