@@ -527,7 +527,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
 
     def run(self):
         log = self.log
-        models = self.models
+        model = self.model
         optimizer = self.optimizer
         epoch = self.epoch
         start_epoch = self.start_epoch
