@@ -262,7 +262,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         self.model = model
         self.optimizer = optimizer
         self.optimizer.lr = self.optimizer.optimizer.lr * len(gpus)
-        print('lr becomes {}'.format(self.optimizer.lr))
+        print('lr is changed to {}'.format(self.optimizer.lr))
         self.load_model = load_model
         self.load_optimizers = load_optimizer
         self.load_log = load_log
