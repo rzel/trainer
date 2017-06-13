@@ -435,9 +435,9 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 n_img = int(float(len(tmp_x)) / len(gpus))
                 print(len(tmp_x))
                 print(n_img)
-                for gpu in gpus:
-                    X[gpu] = tmp_x[i * n_img: (i + 1) * n_img]
-                    T[gpu] = tmp_t[i * n_img: (i + 1) * n_img]
+                for i in six.moves.range(len(gpus)):
+                    X[gpus[i]] = tmp_x[i * n_img: (i + 1) * n_img]
+                    T[gpus[i]] = tmp_t[i * n_img: (i + 1) * n_img]
                 print(X.keys())
                 print(len(X[0]))
                 self.update_core()
