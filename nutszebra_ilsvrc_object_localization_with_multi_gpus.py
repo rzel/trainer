@@ -185,8 +185,8 @@ def gather_params(link):
     """
     size, num = size_num_grads(link)
 
-    ptrs = np.ep(num, dtype=np.uint64)
-    info = np.ep(num + 1, dtype=np.int32)
+    ptrs = np.empty(num, dtype=np.uint64)
+    info = np.empty(num + 1, dtype=np.int32)
     info[0] = 0
     i = 0
     for param in link.params():
@@ -433,13 +433,9 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 T.clear()
                 Loss.clear()
                 n_img = int(float(len(tmp_x)) / len(gpus))
-                print(len(tmp_x))
-                print(n_img)
                 for i in six.moves.range(len(gpus)):
                     X[gpus[i]] = tmp_x[i * n_img: (i + 1) * n_img]
                     T[gpus[i]] = tmp_t[i * n_img: (i + 1) * n_img]
-                print(X.keys())
-                print(len(X[0]))
                 self.update_core()
                 sum_loss += np.sum(Loss) * Divider[0] / data_length
         log({'loss': float(sum_loss)}, 'train_loss')
