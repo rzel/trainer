@@ -552,7 +552,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             loss = np.sum(Loss)
             Loss.clear()
             Loss.append(loss)
-            accuracy, accuracy_5, accuracy_false = Accuracy, Accuracy_5, Accuracy_false
+            accuracy, accuracy_5, accuracy_false = Accuracy.copy(), Accuracy_5.copy(), Accuracy_false.copy()
             Accuracy.clear(), Accuracy_5.clear(), Accuracy_false.clear()
             for tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy in six.moves.zip(accuracy, accuracy_5, accuracy_false):
                 for key in tmp_accuracy:
