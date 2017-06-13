@@ -376,13 +376,14 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         self.model.cleargrads()
         for i in six.moves.range(1, len(self.gpus)):
             pipe, worker_end = multiprocessing.Pipe()
-            worker = _Worker(i, worker_end, self.model, self.gpus, self.da)
+            worker = _Worker(i, worker_end, self.model, self.gpus, self.da())
             worker.start()
             self._workers.append(worker)
             self._pipes.append(pipe)
 
         with cuda.Device(self.gpus[0]):
             self.model.to_gpu(self.gpus[0])
+            self.da = da()
             if len(self.gpus) > 1:
                 communication_id = nccl.get_unique_id()
                 self._send_message(("set comm_id", communication_id))
