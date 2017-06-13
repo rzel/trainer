@@ -131,8 +131,8 @@ class _Worker(multiprocessing.Process):
                         tmp_t.append(t[i])
                 tmp_x = Da.zero_padding(tmp_x)
                 train = False
-                x = self.model.prepare_input(X[self.device], dtype=np.float32, volatile=not train, gpu=self.device)
-                t = self.model.prepare_input(T[self.device], dtype=np.int32, volatile=not train, gpu=self.device)
+                x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.device)
+                t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.device)
                 y = self.model(x, train=train)
                 loss = self.model.calc_loss(y, t)
                 tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy = self.model.accuracy_n(y, t, n=5)
