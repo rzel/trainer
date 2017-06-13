@@ -24,6 +24,7 @@ sampling = nutszebra_sampling.Sampling()
 preprocess = nutszebra_preprocess_picture.PreprocessPicture()
 da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 utility = nutszebra_utility.Utility()
+
 X = {}
 T = {}
 Loss = []
@@ -74,6 +75,7 @@ class _Worker(multiprocessing.Process):
                 t = self.model.prepare_input(T[self.device], dtype=np.int32, volatile=not train, gpu=self.device)
                 y = self.model(x, train=train)
                 loss = self.model.calc_loss(y, t) / Divider[0]
+                self.model.cleargrads()
                 loss.backward()
                 loss.to_cpu()
                 Loss.append(float(loss.data * Divider[0] * x.data.shape[0]))
@@ -94,6 +96,7 @@ class _Worker(multiprocessing.Process):
                                           0,
                                           null_stream.ptr)
                 del gg
+                self.model.cleargrads()
                 # send parameters of self.model
                 gp = gather_params(self.model)
                 self.communication.bcast(gp.data.ptr,
@@ -258,6 +261,8 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
     def __init__(self, model=None, optimizer=None, load_model=None, load_optimizer=None, load_log=None, load_data=None, da=nutszebra_data_augmentation.DataAugmentationNormalizeBigger, save_path='./', epoch=100, batch=128, gpus=(0, 1, 2, 3), start_epoch=1, train_batch_divide=2, test_batch_divide=2, small_sample_training=None):
         self.model = model
         self.optimizer = optimizer
+        self.optimizer.lr = self.optimizer.lr * (self.gpus)
+        print('lr becomes {}'.format(self.optimizer.lr))
         self.load_model = load_model
         self.load_optimizers = load_optimizer
         self.load_log = load_log
@@ -415,7 +420,6 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         with cuda.Device(self.gpus[0]):
             # For reducing memory
             self.model.cleargrads()
-
             train = False
             x = self.model.prepare_input(X[self.gpus[0]], dtype=np.float32, volatile=not train, gpu=self.gpus[0])
             t = self.model.prepare_input(T[self.gpus[0]], dtype=np.int32, volatile=not train, gpu=self.gpus[0])
@@ -489,7 +493,6 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         gpus = self.gpus
         categories = self.categories
         sum_loss = 0
-        Loss.clear()
         sum_accuracy = {}
         sum_5_accuracy = {}
         false_accuracy = {}
@@ -500,6 +503,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         for ii, iii in itertools.product(elements, elements):
             false_accuracy[(ii, iii)] = 0
         progressbar = utility.create_progressbar(len(test_x), desc='test', stride=batch_of_batch)
+        Loss.clear()
         Accuracy.clear()
         Accuracy_5.clear()
         Accuracy_false.clear()
