@@ -533,7 +533,8 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         start_epoch = self.start_epoch
         save_path = self.save_path
         epoch_progressbar = utility.create_progressbar(epoch + 1, desc='epoch', stride=1, start=start_epoch)
-        for i in epoch_progressbar:
+        # for i in epoch_progressbar:
+        for i in six.moves.range(1, epoch + 1):
             self.train_one_epoch()
             # save graph once
             # save model
