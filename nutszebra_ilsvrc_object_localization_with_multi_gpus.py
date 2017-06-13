@@ -33,6 +33,7 @@ Accuracy_5 = []
 Accuracy_false = []
 
 """
+I refered the implementation of MultiprocessParallelUpdate for multiprocessing and nccl.
 https://github.com/chainer/chainer/blob/master/chainer/training/updaters/multiprocess_parallel_updater.py
 """
 
@@ -367,12 +368,9 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
 
     def update_core(self):
         self.setup_workers()
-
+        self.model.cleargrads()
         self._send_message(('update', None))
         with cuda.Device(self.gpus[0]):
-            # For reducing memory
-            self.model.cleargrads()
-
             train = True
             x = self.model.prepare_input(X[self.gpus[0]], dtype=np.float32, volatile=not train, gpu=self.gpus[0])
             t = self.model.prepare_input(T[self.gpus[0]], dtype=np.int32, volatile=not train, gpu=self.gpus[0])
@@ -455,10 +453,9 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         Loss.clear()
         yielder = sampling.yield_random_batch_from_category(int(len(train_x) / batch), self.picture_number_at_each_categories, batch, shuffle=True)
         progressbar = utility.create_progressbar(int(len(train_x) / batch), desc='train', stride=1)
-        n_parallel = len(gpus)
         # train start
         Divider.clear()
-        Divider.append(n_parallel * train_batch_divide)
+        Divider.append(1)
         for _, indices in six.moves.zip(progressbar, yielder):
             for ii in six.moves.range(0, len(indices), batch_of_batch):
                 x = train_x[indices[ii:ii + batch_of_batch]]
