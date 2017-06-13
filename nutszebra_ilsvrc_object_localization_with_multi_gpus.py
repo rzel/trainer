@@ -432,7 +432,8 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 T.clear()
                 Loss.clear()
                 n_img = int(float(len(tmp_x)) / len(gpus))
-                print(tmp_x)
+                print(len(tmp_x))
+                print(n_img)
                 for gpu in gpus:
                     X[gpu] = tmp_x[i * n_img: (i + 1) * n_img]
                     T[gpu] = tmp_t[i * n_img: (i + 1) * n_img]
