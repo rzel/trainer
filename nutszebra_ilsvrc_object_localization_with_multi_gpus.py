@@ -383,7 +383,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
 
         with cuda.Device(self.gpus[0]):
             self.model.to_gpu(self.gpus[0])
-            self.da = da()
+            self.da = self.da()
             if len(self.gpus) > 1:
                 communication_id = nccl.get_unique_id()
                 self._send_message(("set comm_id", communication_id))
