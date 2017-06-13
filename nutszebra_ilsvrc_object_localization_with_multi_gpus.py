@@ -330,7 +330,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         self.model.cleargrads()
         for i in six.moves.range(1, len(self.gpus)):
             pipe, worker_end = multiprocessing.Pipe()
-            worker = _Worker(i, worker_end, self)
+            worker = _Worker(i, worker_end, self, self.gpus)
             worker.start()
             self._workers.append(worker)
             self._pipes.append(pipe)
