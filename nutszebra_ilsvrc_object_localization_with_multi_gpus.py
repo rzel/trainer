@@ -282,10 +282,8 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
     def __init__(self, model=None, optimizer=None, load_model=None, load_optimizer=None, load_log=None, load_data=None, da=nutszebra_data_augmentation.DataAugmentationNormalizeBigger, save_path='./', epoch=100, batch=128, gpus=(0, 1, 2, 3), start_epoch=1, train_batch_divide=2, test_batch_divide=2, small_sample_training=None):
         self.model = model
         self.optimizer = optimizer
-        self.optimizer.lr = self.optimizer.optimizer.lr * len(gpus)
-        print('lr is changed to {}'.format(self.optimizer.lr))
         self.load_model = load_model
-        self.load_optimizers = load_optimizer
+        self.load_optimizer = load_optimizer
         self.load_log = load_log
         self.load_data = load_data
         self.da = da
