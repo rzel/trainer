@@ -497,7 +497,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         progressbar = utility.create_progressbar(int(len(train_x) / batch), desc='train', stride=1)
         # train start
         Divider.clear()
-        Divider.append(1)
+        Divider.append(len(gpus))
         for _, indices in six.moves.zip(progressbar, yielder):
             for ii in six.moves.range(0, len(indices), batch_of_batch):
                 x = train_x[indices[ii:ii + batch_of_batch]]
