@@ -411,7 +411,6 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
 
     def test_core(self):
         self.setup_workers()
-
         self._send_message(('test', None))
         with cuda.Device(self.gpus[0]):
             # For reducing memory
@@ -501,6 +500,9 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         for ii, iii in itertools.product(elements, elements):
             false_accuracy[(ii, iii)] = 0
         progressbar = utility.create_progressbar(len(test_x), desc='test', stride=batch_of_batch)
+        Accuracy.clear()
+        Accuracy_5.clear()
+        Accuracy_false.clear()
         for i in progressbar:
             x = test_x[i:i + batch_of_batch]
             t = test_y[i:i + batch_of_batch]
