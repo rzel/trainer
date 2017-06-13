@@ -25,10 +25,12 @@ preprocess = nutszebra_preprocess_picture.PreprocessPicture()
 da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 utility = nutszebra_utility.Utility()
 X = {}
-T = {} 
+T = {}
 Loss = []
 Divider = []
-Train = []
+Accuracy = []
+Accuracy_5 = []
+Accuracy_false = []
 
 """
 https://github.com/chainer/chainer/blob/master/chainer/training/updaters/multiprocess_parallel_updater.py
@@ -66,14 +68,14 @@ class _Worker(multiprocessing.Process):
             if job == 'update':
                 # for reducing memory
                 self.model.cleargrads()
-                train = Train[0]
+                train = True
                 x = self.model.prepare_input(X[self.device], dtype=np.float32, volatile=not train, gpu=self.device)
                 t = self.model.prepare_input(T[self.device], dtype=np.int32, volatile=not train, gpu=self.device)
                 y = self.model(x, train=train)
                 loss = self.model.calc_loss(y, t) / Divider[0]
                 loss.backward()
                 loss.to_cpu()
-                Loss.append(float(loss.data))
+                Loss.append(float(loss.data * Divider[0] * x.data.shape[0]))
 
                 del x
                 del t
@@ -100,6 +102,25 @@ class _Worker(multiprocessing.Process):
                                          null_stream.ptr)
                 scatter_params(self.model, gp)
                 gp = None
+            if job == 'test':
+                # for reducing memory
+                self.model.cleargrads()
+                train = False
+                x = self.model.prepare_input(X[self.device], dtype=np.float32, volatile=not train, gpu=self.device)
+                t = self.model.prepare_input(T[self.device], dtype=np.int32, volatile=not train, gpu=self.device)
+                y = self.model(x, train=train)
+                loss = self.model.calc_loss(y, t)
+                tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy = self.model.accuracy_n(y, t, n=5)
+                Accuracy.append(tmp_accuracy)
+                Accuracy_5.append(tmp_5_accuracy)
+                Accuracy_false.append(tmp_false_accuracy)
+                loss.to_cpu()
+                Loss.append(float(loss.data * x.data.shape[0]))
+
+                del x
+                del t
+                del y
+                del loss
 
 
 def size_num_grads(link):
@@ -352,14 +373,14 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             # For reducing memory
             self.model.cleargrads()
 
-            train = Train[0]
+            train = True
             x = self.model.prepare_input(X[self.gpus[0]], dtype=np.float32, volatile=not train, gpu=self.gpus[0])
             t = self.model.prepare_input(T[self.gpus[0]], dtype=np.int32, volatile=not train, gpu=self.gpus[0])
             y = self.model(x, train=train)
             loss = self.model.calc_loss(y, t) / Divider[0]
             loss.backward()
             loss.to_cpu()
-            Loss.append(float(loss.data))
+            Loss.append(float(loss.data * Divider[0] * x.data.shape[0]))
 
             del x
             del t
@@ -390,6 +411,31 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                                          0,
                                          null_stream.ptr)
 
+    def test_core(self):
+        self.setup_workers()
+
+        self._send_message(('test', None))
+        with cuda.Device(self.gpus[0]):
+            # For reducing memory
+            self.model.cleargrads()
+
+            train = False
+            x = self.model.prepare_input(X[self.gpus[0]], dtype=np.float32, volatile=not train, gpu=self.gpus[0])
+            t = self.model.prepare_input(T[self.gpus[0]], dtype=np.int32, volatile=not train, gpu=self.gpus[0])
+            y = self.model(x, train=train)
+            loss = self.model.calc_loss(y, t)
+            tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy = self.model.accuracy_n(y, t, n=5)
+            Accuracy.append(tmp_accuracy)
+            Accuracy_5.append(tmp_5_accuracy)
+            Accuracy_false.append(tmp_false_accuracy)
+            loss.to_cpu()
+            Loss.append(float(loss.data * x.data.shape[0]))
+
+            del x
+            del t
+            del y
+            del loss
+
     def finalize(self):
         self._send_message(('finalize', None))
 
@@ -406,19 +452,17 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         train_batch_divide = self.train_batch_divide
         batch_of_batch = int(batch / train_batch_divide)
         sum_loss = 0
+        Loss.clear()
         yielder = sampling.yield_random_batch_from_category(int(len(train_x) / batch), self.picture_number_at_each_categories, batch, shuffle=True)
         progressbar = utility.create_progressbar(int(len(train_x) / batch), desc='train', stride=1)
         n_parallel = len(gpus)
         # train start
-        Train.clear()
-        Train.append(True)
         Divider.clear()
         Divider.append(n_parallel * train_batch_divide)
         for _, indices in six.moves.zip(progressbar, yielder):
             for ii in six.moves.range(0, len(indices), batch_of_batch):
                 x = train_x[indices[ii:ii + batch_of_batch]]
                 t = train_y[indices[ii:ii + batch_of_batch]]
-                data_length = len(x)
                 tmp_x = []
                 tmp_t = []
                 for i in six.moves.range(len(x)):
@@ -427,16 +471,14 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                         tmp_x.append(img)
                         tmp_t.append(t[i])
                 tmp_x = Da.zero_padding(tmp_x)
-                # calculate loss and accuracy
                 X.clear()
                 T.clear()
-                Loss.clear()
                 n_img = int(float(len(tmp_x)) / len(gpus))
                 for i in six.moves.range(len(gpus)):
                     X[gpus[i]] = tmp_x[i * n_img: (i + 1) * n_img]
                     T[gpus[i]] = tmp_t[i * n_img: (i + 1) * n_img]
                 self.update_core()
-                sum_loss += np.sum(Loss) * Divider[0] / data_length
+        sum_loss += np.sum(Loss)
         log({'loss': float(sum_loss)}, 'train_loss')
         print(log.train_loss())
 
@@ -446,12 +488,12 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         test_x = self.test_x
         test_y = self.test_y
         batch = self.batch
-        save_path = self.save_path
         test_batch_divide = self.test_batch_divide
         batch_of_batch = int(batch / test_batch_divide)
+        gpus = self.gpus
         categories = self.categories
-        n_parallel = len(models)
         sum_loss = 0
+        Loss.clear()
         sum_accuracy = {}
         sum_5_accuracy = {}
         false_accuracy = {}
@@ -472,31 +514,24 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 if img is not None:
                     tmp_x.append(img)
                     tmp_t.append(t[i])
-            data_length = len(tmp_x)
             tmp_x = Da.zero_padding(tmp_x)
-            # x = models[0].prepare_input(tmp_x, dtype=np.float32, volatile=True)
-            # n_img = int(float(x.data.shape[0]) / n_parallel)
-            # # parallely calculate loss
-            # losses_and_accuracy = Parallel(n_jobs=n_parallel)(delayed(calculate_loss_and_accuracy)(models[i], x[i * n_img: (i + 1) * n_img], t[i * n_img: (i + 1) * n_img], False, test_batch_divide * len(models)) for i in six.moves.range(len(models)))
-            # losses, accuracies = list(zip(*losses_and_accuracy))
-            # # to_cpu
-            # [loss.to_cpu() for loss in losses]
-            # sum_loss += np.sum([loss.data for loss in losses]) * data_length
-            for accuracy in accuracies:
-                tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy = accuracy
-                for key in tmp_accuracy:
-                    sum_accuracy[key] += tmp_accuracy[key]
-                for key in tmp_5_accuracy:
-                    sum_5_accuracy[key] += tmp_5_accuracy[key]
-                for key in tmp_false_accuracy:
-                    false_accuracy[key] += tmp_false_accuracy[key]
-                models[0].save_computational_graph(loss, path=save_path)
-            del x
-            del t
-            del losses_and_accuracy
-            del losses
-            del accuracies
+            X.clear()
+            T.clear()
+            n_img = int(float(len(tmp_x)) / len(gpus))
+            for i in six.moves.range(len(gpus)):
+                X[gpus[i]] = tmp_x[i * n_img: (i + 1) * n_img]
+                T[gpus[i]] = tmp_t[i * n_img: (i + 1) * n_img]
+            self.test_core()
+
+        for tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy in six.moves.zip(Accuracy, Accuracy_5, Accuracy_false):
+            for key in tmp_accuracy:
+                sum_accuracy[key] += tmp_accuracy[key]
+            for key in tmp_5_accuracy:
+                sum_5_accuracy[key] += tmp_5_accuracy[key]
+            for key in tmp_false_accuracy:
+                false_accuracy[key] += tmp_false_accuracy[key]
         # sum_loss
+        sum_loss += np.sum(Loss)
         log({'loss': float(sum_loss)}, 'test_loss')
         # sum_accuracy
         num = 0
@@ -530,13 +565,11 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         epoch = self.epoch
         start_epoch = self.start_epoch
         save_path = self.save_path
-        # epoch_progressbar = utility.create_progressbar(epoch + 1, desc='epoch', stride=1, start=start_epoch)
-        # for i in epoch_progressbar:
-        for i in six.moves.range(1, epoch + 1):
+        epoch_progressbar = utility.create_progressbar(epoch + 1, desc='epoch', stride=1, start=start_epoch)
+        for i in epoch_progressbar:
             self.train_one_epoch()
-            # save graph once
             # save model
-            models[0].save_model('{}model/{}_{}.model'.format(save_path, models[0].name, i))
+            model.save_model('{}model/{}_{}.model'.format(save_path, model.name, i))
             optimizer(i)
             self.test_one_epoch()
             log.generate_loss_figure('{}loss.jpg'.format(save_path))
