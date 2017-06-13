@@ -438,6 +438,8 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 for gpu in gpus:
                     X[gpu] = tmp_x[i * n_img: (i + 1) * n_img]
                     T[gpu] = tmp_t[i * n_img: (i + 1) * n_img]
+                print(X.keys())
+                print(len(X[0]))
                 self.update_core()
                 sum_loss += np.sum(Loss) * Divider[0] / data_length
         log({'loss': float(sum_loss)}, 'train_loss')
