@@ -7,7 +7,6 @@ import nutszebra_log2
 import nutszebra_utility
 import nutszebra_sampling
 import nutszebra_load_ilsvrc_object_localization
-import nutszebra_preprocess_picture
 import nutszebra_data_augmentation_picture
 import nutszebra_data_augmentation
 import nutszebra_basic_print
@@ -21,8 +20,6 @@ except ImportError:
 
 Da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 sampling = nutszebra_sampling.Sampling()
-preprocess = nutszebra_preprocess_picture.PreprocessPicture()
-da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 utility = nutszebra_utility.Utility()
 
 X = {}
@@ -134,11 +131,11 @@ class _Worker(multiprocessing.Process):
                 x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.device)
                 t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.device)
                 y = self.model(x, train=train)
-                loss = self.model.calc_loss(y, t)
                 tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy = self.model.accuracy_n(y, t, n=5)
                 Accuracy.append(tmp_accuracy)
                 Accuracy_5.append(tmp_5_accuracy)
                 Accuracy_false.append(tmp_false_accuracy)
+                loss = self.model.calc_loss(y, t)
                 loss.to_cpu()
                 Loss.append(float(loss.data * x.data.shape[0]))
 
@@ -555,16 +552,15 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             loss = np.sum(Loss)
             Loss.clear()
             Loss.append(loss)
-            for tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy in six.moves.zip(Accuracy, Accuracy_5, Accuracy_false):
+            accuracy, accuracy_5, accuracy_false = Accuracy, Accuracy_5, Accuracy_false
+            Accuracy.clear(), Accuracy_5.clear(), Accuracy_false.clear()
+            for tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy in six.moves.zip(accuracy, accuracy_5, accuracy_false):
                 for key in tmp_accuracy:
                     sum_accuracy[key] += tmp_accuracy[key]
                 for key in tmp_5_accuracy:
                     sum_5_accuracy[key] += tmp_5_accuracy[key]
                 for key in tmp_false_accuracy:
                     false_accuracy[key] += tmp_false_accuracy[key]
-            Accuracy.clear()
-            Accuracy_5.clear()
-            Accuracy_false.clear()
         # sum_loss
         sum_loss += np.sum(Loss)
         log({'loss': float(sum_loss)}, 'test_loss')
