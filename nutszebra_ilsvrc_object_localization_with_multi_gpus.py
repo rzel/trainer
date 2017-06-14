@@ -506,8 +506,8 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 self.X = list(x[:n_img])
                 self.T = list(t[:n_img])
                 for i in six.moves.range(1, len(gpus)):
-                    self._workers[i - 1].X = x[i * n_img: (i + 1) * n_img]
-                    self._workers[i - 1].T = t[i * n_img: (i + 1) * n_img]
+                    self._workers[i - 1].X = list(x[i * n_img: (i + 1) * n_img])
+                    self._workers[i - 1].T = list(t[i * n_img: (i + 1) * n_img])
                 self.update_core()
                 sum_loss = np.sum(self.Loss)
         log({'loss': float(sum_loss)}, 'train_loss')
@@ -548,8 +548,8 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             self.X = list(x[:n_img])
             self.T = list(t[:n_img])
             for i in six.moves.range(1, len(gpus)):
-                self._workers[i - 1].X = x[i * n_img: (i + 1) * n_img]
-                self._workers[i - 1].T = t[i * n_img: (i + 1) * n_img]
+                self._workers[i - 1].X = list(x[i * n_img: (i + 1) * n_img])
+                self._workers[i - 1].T = list(t[i * n_img: (i + 1) * n_img])
             self.test_core()
         for i in six.moves.range(len(self._workers)):
             self.Accuracy += self._workers[i].Accuracy
