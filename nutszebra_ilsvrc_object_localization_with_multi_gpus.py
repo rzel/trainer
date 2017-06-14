@@ -129,9 +129,9 @@ class _Worker(multiprocessing.Process):
                         self.dead_image.append(x[i])
                 # tmp_x = Da.zero_padding(tmp_x)
                 train = False
+                print(len(tmp_x))
                 x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.device)
                 t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.device)
-                print(x.data.shape)
                 y = self.model(x, train=train)
                 tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy = self.model.accuracy_n(y, t, n=5)
                 self.Accuracy.append(tmp_accuracy)
