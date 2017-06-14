@@ -394,7 +394,6 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                                                            0)
 
     def update_core(self):
-        self.setup_workers()
         self._send_message(('update', None))
         with cuda.Device(self.gpus[0]):
             self.model.cleargrads()
@@ -447,7 +446,6 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                                          null_stream.ptr)
 
     def test_core(self):
-        self.setup_workers()
         self.model.cleargrads()
         self._send_message(('test', None))
         with cuda.Device(self.gpus[0]):
@@ -485,6 +483,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             worker.join()
 
     def train_one_epoch(self):
+        self.setup_workers()
         # initialization
         log = self.log
         train_x = self.train_x
@@ -515,6 +514,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         print(log.train_loss())
 
     def test_one_epoch(self):
+        self.setup_workers()
         # initialization
         log = self.log
         test_x = self.test_x
