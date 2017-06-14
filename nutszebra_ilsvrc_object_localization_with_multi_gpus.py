@@ -558,8 +558,8 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             for i in six.moves.range(1, len(gpus)):
                 self._workers[i - 1].X.append(list(x[i * n_img: (i + 1) * n_img]))
                 self._workers[i - 1].T.append(list(t[i * n_img: (i + 1) * n_img]))
-                print(self._workers[i - 1])
-                print(len(self._workers[i - 1].X))
+                print(self._workers[i - 1].X)
+                print(len(self._workers[i - 1].X[0]))
             self.test_core()
         for i in six.moves.range(len(self._workers)):
             self.Accuracy += self._workers[i].Accuracy
