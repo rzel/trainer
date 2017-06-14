@@ -45,6 +45,7 @@ class _Worker(multiprocessing.Process):
         self.Accuracy = []
         self.Accuracy_5 = []
         self.Accuracy_false = []
+        self.dead_image = []
 
     def setup(self):
         _, communication_id = self.pipe.recv()
@@ -124,6 +125,8 @@ class _Worker(multiprocessing.Process):
                     if img is not None:
                         tmp_x.append(img)
                         tmp_t.append(t[i])
+                    else:
+                        self.dead_image.append(x[i])
                 # tmp_x = Da.zero_padding(tmp_x)
                 train = False
                 x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.device)
