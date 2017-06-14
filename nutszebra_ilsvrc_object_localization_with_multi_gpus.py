@@ -47,6 +47,9 @@ class _Worker(multiprocessing.Process):
         self.Accuracy_false = []
         self.dead_image = []
 
+    def get(self, name):
+        return self[name]
+
     def setup(self):
         _, communication_id = self.pipe.recv()
         self.communication = nccl.NcclCommunicator(self.number_of_devices,
