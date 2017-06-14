@@ -83,7 +83,6 @@ class _Worker(multiprocessing.Process):
                 t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.device)
                 y = self.model(x, train=train)
                 loss = self.model.calc_loss(y, t) / Divider[0]
-                self.model.cleargrads()
                 loss.backward()
                 loss.to_cpu()
                 Loss.append(float(loss.data * Divider[0] * x.data.shape[0]))
@@ -446,10 +445,9 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
 
     def test_core(self):
         self.setup_workers()
+        self.model.cleargrads()
         self._send_message(('test', None))
         with cuda.Device(self.gpus[0]):
-            # For reducing memory
-            self.model.cleargrads()
             x = X[self.gpus[0]]
             t = T[self.gpus[0]]
             tmp_x = []
