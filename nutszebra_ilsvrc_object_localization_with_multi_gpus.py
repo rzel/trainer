@@ -503,8 +503,8 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 x = train_x[indices[ii:ii + batch_of_batch]]
                 t = train_y[indices[ii:ii + batch_of_batch]]
                 n_img = int(float(len(x)) / len(gpus))
-                self.X = x[:n_img]
-                self.T = t[:n_img]
+                self.X = list(x[:n_img])
+                self.T = list(t[:n_img])
                 for i in six.moves.range(1, len(gpus)):
                     self._workers[i - 1].X = x[i * n_img: (i + 1) * n_img]
                     self._workers[i - 1].T = t[i * n_img: (i + 1) * n_img]
@@ -545,8 +545,8 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             x = test_x[i:i + batch_of_batch]
             t = test_y[i:i + batch_of_batch]
             n_img = int(float(len(x)) / len(gpus))
-            self.X = x[:n_img]
-            self.T = t[:n_img]
+            self.X = list(x[:n_img])
+            self.T = list(t[:n_img])
             for i in six.moves.range(1, len(gpus)):
                 self._workers[i - 1].X = x[i * n_img: (i + 1) * n_img]
                 self._workers[i - 1].T = t[i * n_img: (i + 1) * n_img]
