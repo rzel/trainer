@@ -76,7 +76,7 @@ class _Worker(multiprocessing.Process):
                     if img is not None:
                         tmp_x.append(img)
                         tmp_t.append(t[i])
-                tmp_x = Da.zero_padding(tmp_x)
+                # tmp_x = Da.zero_padding(tmp_x)
                 train = True
                 x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.device)
                 t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.device)
@@ -124,7 +124,7 @@ class _Worker(multiprocessing.Process):
                     if img is not None:
                         tmp_x.append(img)
                         tmp_t.append(t[i])
-                tmp_x = Da.zero_padding(tmp_x)
+                # tmp_x = Da.zero_padding(tmp_x)
                 train = False
                 x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.device)
                 t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.device)
@@ -406,7 +406,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 if img is not None:
                     tmp_x.append(img)
                     tmp_t.append(t[i])
-            tmp_x = Da.zero_padding(tmp_x)
+            # tmp_x = Da.zero_padding(tmp_x)
             train = True
             x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpus[0])
             t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.gpus[0])
@@ -458,7 +458,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 if img is not None:
                     tmp_x.append(img)
                     tmp_t.append(t[i])
-            tmp_x = Da.zero_padding(tmp_x)
+            # tmp_x = Da.zero_padding(tmp_x)
             train = False
             x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpus[0])
             t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.gpus[0])
