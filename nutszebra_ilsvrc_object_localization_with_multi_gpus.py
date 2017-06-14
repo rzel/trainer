@@ -127,12 +127,9 @@ class _Worker(multiprocessing.Process):
                         tmp_t.append(t[i])
                 tmp_x = Da.zero_padding(tmp_x)
                 train = False
-                self.model.cleargrads()
                 x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.device)
                 t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.device)
-                self.model.cleargrads()
                 y = self.model(x, train=train)
-                self.model.cleargrads()
                 tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy = self.model.accuracy_n(y, t, n=5)
                 Accuracy.append(tmp_accuracy)
                 Accuracy_5.append(tmp_5_accuracy)
@@ -392,9 +389,9 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
 
     def update_core(self):
         self.setup_workers()
-        self.model.cleargrads()
         self._send_message(('update', None))
         with cuda.Device(self.gpus[0]):
+            self.model.cleargrads()
             x = X[self.gpus[0]]
             t = T[self.gpus[0]]
             tmp_x = []
@@ -459,12 +456,9 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                     tmp_t.append(t[i])
             tmp_x = Da.zero_padding(tmp_x)
             train = False
-            self.model.cleargrads()
             x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpus[0])
             t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.gpus[0])
-            self.model.cleargrads()
             y = self.model(x, train=train)
-            self.model.cleargrads()
             loss = self.model.calc_loss(y, t)
             tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy = self.model.accuracy_n(y, t, n=5)
             Accuracy.append(tmp_accuracy)
@@ -567,18 +561,13 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             #     for key in tmp_false_accuracy:
             #         false_accuracy[key] += tmp_false_accuracy[key]
             self.test_core()
-        loss = np.sum(Loss)
-        Loss.clear()
-        Loss.append(loss)
-        accuracy, accuracy_5, accuracy_false = Accuracy.copy(), Accuracy_5.copy(), Accuracy_false.copy()
-        Accuracy.clear(), Accuracy_5.clear(), Accuracy_false.clear()
-        for tmp_accuracy in accuracy:
+        for tmp_accuracy in Accuracy:
             for key in tmp_accuracy:
                 sum_accuracy[key] += tmp_accuracy[key]
-        for tmp_5_accuracy in accuracy_5:
+        for tmp_5_accuracy in Accuracy_5:
             for key in tmp_5_accuracy:
                 sum_5_accuracy[key] += tmp_5_accuracy[key]
-        for tmp_false_accuracy in accuracy_false:
+        for tmp_false_accuracy in Accuracy_false:
             for key in tmp_false_accuracy:
                 false_accuracy[key] += tmp_false_accuracy[key]
         # sum_loss
