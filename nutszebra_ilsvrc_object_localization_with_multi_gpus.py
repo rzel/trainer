@@ -116,6 +116,7 @@ class _Worker(multiprocessing.Process):
             if job == 'test':
                 # for reducing memory
                 self.model.cleargrads()
+                print(id(self.x))
                 x = self.X[0]
                 t = self.T[0]
                 print(len(x))
