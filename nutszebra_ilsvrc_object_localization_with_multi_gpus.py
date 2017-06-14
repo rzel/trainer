@@ -118,6 +118,7 @@ class _Worker(multiprocessing.Process):
                 self.model.cleargrads()
                 x = self.X
                 t = self.T
+                print(len(x))
                 tmp_x = []
                 tmp_t = []
                 for i in six.moves.range(len(x)):
@@ -129,7 +130,6 @@ class _Worker(multiprocessing.Process):
                         self.dead_image.append(x[i])
                 # tmp_x = Da.zero_padding(tmp_x)
                 train = False
-                print(len(tmp_x))
                 x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.device)
                 t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.device)
                 y = self.model(x, train=train)
