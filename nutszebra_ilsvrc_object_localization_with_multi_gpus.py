@@ -46,6 +46,9 @@ class _Worker(multiprocessing.Process):
         self.da = da
         self.device = gpus[process_id]
         self.number_of_devices = len(gpus)
+        self.Accuracy = []
+        self.Accuracy_5 = []
+        self.Accuracy_false = []
 
     def setup(self):
         _, communication_id = self.pipe.recv()
@@ -131,9 +134,9 @@ class _Worker(multiprocessing.Process):
                 t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.device)
                 y = self.model(x, train=train)
                 tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy = self.model.accuracy_n(y, t, n=5)
-                Accuracy.append(tmp_accuracy)
-                Accuracy_5.append(tmp_5_accuracy)
-                Accuracy_false.append(tmp_false_accuracy)
+                self.Accuracy.append(tmp_accuracy)
+                self.Accuracy_5.append(tmp_5_accuracy)
+                self.Accuracy_false.append(tmp_false_accuracy)
                 loss = self.model.calc_loss(y, t)
                 loss.to_cpu()
                 Loss.append(float(loss.data * x.data.shape[0]))
@@ -537,6 +540,9 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         Accuracy.clear()
         Accuracy_5.clear()
         Accuracy_false.clear()
+        [worker.Accuracy.clear() for worker in self._workers]
+        [worker.Accuracy_5.clear() for worker in self._workers]
+        [worker.Accuracy_false.clear() for worker in self._workers]
         for i in progressbar:
             x = test_x[i:i + batch_of_batch]
             t = test_y[i:i + batch_of_batch]
@@ -561,6 +567,10 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             #     for key in tmp_false_accuracy:
             #         false_accuracy[key] += tmp_false_accuracy[key]
             self.test_core()
+        for i in len(self._workers):
+            Accuracy += self._workers[i].Accuracy
+            Accuracy_5 += self._workers[i].Accuracy_5
+            Accuracy_false += self._workers[i].Accuracy_false
         for tmp_accuracy in Accuracy:
             for key in tmp_accuracy:
                 sum_accuracy[key] += tmp_accuracy[key]
