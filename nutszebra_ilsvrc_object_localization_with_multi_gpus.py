@@ -567,17 +567,18 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             #     for key in tmp_false_accuracy:
             #         false_accuracy[key] += tmp_false_accuracy[key]
             self.test_core()
+        accuracy, accuracy_5, accuracy_false = [], [], []
         for i in len(self._workers):
-            Accuracy += self._workers[i].Accuracy
-            Accuracy_5 += self._workers[i].Accuracy_5
-            Accuracy_false += self._workers[i].Accuracy_false
-        for tmp_accuracy in Accuracy:
+            accuracy += self._workers[i].Accuracy
+            accuracy_5 += self._workers[i].Accuracy_5
+            accuracy_false += self._workers[i].Accuracy_false
+        for tmp_accuracy in accuracy:
             for key in tmp_accuracy:
                 sum_accuracy[key] += tmp_accuracy[key]
-        for tmp_5_accuracy in Accuracy_5:
+        for tmp_5_accuracy in accuracy_5:
             for key in tmp_5_accuracy:
                 sum_5_accuracy[key] += tmp_5_accuracy[key]
-        for tmp_false_accuracy in Accuracy_false:
+        for tmp_false_accuracy in accuracy_false:
             for key in tmp_false_accuracy:
                 false_accuracy[key] += tmp_false_accuracy[key]
         # sum_loss
