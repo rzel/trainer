@@ -48,7 +48,7 @@ class _Worker(multiprocessing.Process):
         self.dead_image = []
 
     def get(self, name):
-        return self[name]
+        return self.__dict__[name]
 
     def setup(self):
         _, communication_id = self.pipe.recv()
