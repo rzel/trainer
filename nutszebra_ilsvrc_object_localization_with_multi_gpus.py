@@ -554,21 +554,35 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             for i in six.moves.range(len(gpus)):
                 X[gpus[i]] = x[i * n_img: (i + 1) * n_img]
                 T[gpus[i]] = t[i * n_img: (i + 1) * n_img]
+            # loss = np.sum(Loss)
+            # Loss.clear()
+            # Loss.append(loss)
+            # accuracy, accuracy_5, accuracy_false = Accuracy.copy(), Accuracy_5.copy(), Accuracy_false.copy()
+            # Accuracy.clear(), Accuracy_5.clear(), Accuracy_false.clear()
+            # for tmp_accuracy in accuracy:
+            #     for key in tmp_accuracy:
+            #         sum_accuracy[key] += tmp_accuracy[key]
+            # for tmp_5_accuracy in accuracy_5:
+            #     for key in tmp_5_accuracy:
+            #         sum_5_accuracy[key] += tmp_5_accuracy[key]
+            # for tmp_false_accuracy in accuracy_false:
+            #     for key in tmp_false_accuracy:
+            #         false_accuracy[key] += tmp_false_accuracy[key]
             self.test_core()
-            loss = np.sum(Loss)
-            Loss.clear()
-            Loss.append(loss)
-            accuracy, accuracy_5, accuracy_false = Accuracy.copy(), Accuracy_5.copy(), Accuracy_false.copy()
-            Accuracy.clear(), Accuracy_5.clear(), Accuracy_false.clear()
-            for tmp_accuracy in accuracy:
-                for key in tmp_accuracy:
-                    sum_accuracy[key] += tmp_accuracy[key]
-            for tmp_5_accuracy in accuracy_5:
-                for key in tmp_5_accuracy:
-                    sum_5_accuracy[key] += tmp_5_accuracy[key]
-            for tmp_false_accuracy in accuracy_false:
-                for key in tmp_false_accuracy:
-                    false_accuracy[key] += tmp_false_accuracy[key]
+        loss = np.sum(Loss)
+        Loss.clear()
+        Loss.append(loss)
+        accuracy, accuracy_5, accuracy_false = Accuracy.copy(), Accuracy_5.copy(), Accuracy_false.copy()
+        Accuracy.clear(), Accuracy_5.clear(), Accuracy_false.clear()
+        for tmp_accuracy in accuracy:
+            for key in tmp_accuracy:
+                sum_accuracy[key] += tmp_accuracy[key]
+        for tmp_5_accuracy in accuracy_5:
+            for key in tmp_5_accuracy:
+                sum_5_accuracy[key] += tmp_5_accuracy[key]
+        for tmp_false_accuracy in accuracy_false:
+            for key in tmp_false_accuracy:
+                false_accuracy[key] += tmp_false_accuracy[key]
         # sum_loss
         sum_loss += np.sum(Loss)
         log({'loss': float(sum_loss)}, 'test_loss')
