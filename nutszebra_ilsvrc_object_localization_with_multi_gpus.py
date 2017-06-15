@@ -539,5 +539,5 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
 
 def process(x, t, _da):
     da = _da()
-    da.test(x)
-    return (da.x, t)
+    x, info = da.test(x)
+    return (x, t)
