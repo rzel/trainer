@@ -19,7 +19,7 @@ except ImportError:
     _available = False
 
 Da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
-sampling = nutszebra_sampling.Sampling()
+sampling = nutszebra_sampling.Sampling
 utility = nutszebra_utility.Utility()
 
 """
@@ -30,7 +30,7 @@ https://github.com/chainer/chainer/blob/master/chainer/training/updaters/multipr
 
 class _Worker(multiprocessing.Process):
 
-    def __init__(self, process_id, pipe, model, gpus, da, batch, master):
+    def __init__(self, process_id, pipe, model, gpus, da, batch, master, sampling=sampling()):
         super(_Worker, self).__init__()
         self.process_id = process_id
         self.pipe = pipe
@@ -40,6 +40,10 @@ class _Worker(multiprocessing.Process):
         self.number_of_devices = len(gpus)
         self.batch = batch
         self.master = master
+        self.train_x = master.train_x
+        self.train_y = master.train_y
+        self.picture_number_at_each_categories = master.picture_number_at_each_categories
+        self.sampling = sampling
 
     def get(self, name):
         return self.__dict__[name]
@@ -65,9 +69,9 @@ class _Worker(multiprocessing.Process):
             if job == 'update':
                 # for reducing memory
                 self.model.cleargrads()
-                indices = list(sampling.yield_random_batch_from_category(1, self.master.picture_number_at_each_categories, self.batch, shuffle=True))[0]
-                x = self.master.train_x[indices]
-                t = self.master.train_y[indices]
+                indices = list(self.sampling.yield_random_batch_from_category(1, self.picture_number_at_each_categories, self.batch, shuffle=True))[0]
+                x = self.train_x[indices]
+                t = self.train_y[indices]
                 tmp_x = []
                 tmp_t = []
                 for i in six.moves.range(len(x)):
@@ -267,6 +271,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         # create directory
         self.save_path = save_path if save_path[-1] == '/' else save_path + '/'
         utility.make_dir('{}model'.format(self.save_path))
+        self.sampling = sampling()
         self._initialized = False
         self._pipes = []
         self._workers = []
@@ -420,15 +425,14 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         train_batch_divide = self.train_batch_divide
         batch_of_batch = int(float(batch) / len(gpus) / train_batch_divide)
         sum_loss = 0
-        yielder = sampling.yield_random_batch_from_category(int(len(train_x) / batch), self.picture_number_at_each_categories, int(float(batch) / len(gpus)), shuffle=True)
+        yielder = self.sampling.yield_random_batch_from_category(int(len(train_x) / batch), self.picture_number_at_each_categories, int(float(batch) / len(gpus)), shuffle=True)
         progressbar = utility.create_progressbar(int(len(train_x) / batch), desc='train', stride=1)
         # train start
         for _, indices in six.moves.zip(progressbar, yielder):
             for ii in six.moves.range(0, len(indices), batch_of_batch):
                 x = train_x[indices[ii:ii + batch_of_batch]]
                 t = train_y[indices[ii:ii + batch_of_batch]]
-                loss = self.update_core(x, t)
-                sum_loss += loss
+                sum_loss += self.update_core(x, t)
         log({'loss': float(sum_loss)}, 'train_loss')
         print(log.train_loss())
 
