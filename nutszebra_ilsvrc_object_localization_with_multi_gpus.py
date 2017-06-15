@@ -372,13 +372,14 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                     tmp_x.append(img)
                     tmp_t.append(t[i])
             train = True
+            data_length = len(tmp_x)
             x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpus[0])
             t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.gpus[0])
             y = self.model(x, train=train)
             loss = self.model.calc_loss(y, t) / len(self.gpus)
             loss.backward()
             loss.to_cpu()
-            loss = float(loss.data)
+            loss = float(loss.data) * data_length
 
             del x
             del t
