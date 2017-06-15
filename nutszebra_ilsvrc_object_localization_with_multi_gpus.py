@@ -526,6 +526,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         print(log.train_loss())
 
     def test_one_epoch(self):
+        self.setup_workers()
         # initialization
         log = self.log
         test_x = self.test_x
