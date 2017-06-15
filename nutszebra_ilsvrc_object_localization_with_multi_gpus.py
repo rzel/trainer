@@ -30,7 +30,7 @@ https://github.com/chainer/chainer/blob/master/chainer/training/updaters/multipr
 
 class _Worker(multiprocessing.Process):
 
-    def __init__(self, process_id, pipe, model, gpus, da):
+    def __init__(self, process_id, pipe, model, gpus, da, batch, master):
         super(_Worker, self).__init__()
         self.process_id = process_id
         self.pipe = pipe
@@ -38,6 +38,8 @@ class _Worker(multiprocessing.Process):
         self.da = da
         self.device = gpus[process_id]
         self.number_of_devices = len(gpus)
+        self.batch = batch
+        self.master = master
         self.X = []
         self.T = []
         self.Loss = []
@@ -71,8 +73,9 @@ class _Worker(multiprocessing.Process):
             if job == 'update':
                 # for reducing memory
                 self.model.cleargrads()
-                x = self.X[0]
-                t = self.T[0]
+                indices = list(sampling.yield_random_batch_from_category(1, self.master.picture_number_at_each_categories, self.batch, shuffle=True))[0]
+                x = self.master.train_x[indices]
+                t = self.master.train_y[indices]
                 tmp_x = []
                 tmp_t = []
                 for i in six.moves.range(len(x)):
@@ -386,7 +389,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         self.model.cleargrads()
         for i in six.moves.range(1, len(self.gpus)):
             pipe, worker_end = multiprocessing.Pipe()
-            worker = _Worker(i, worker_end, self.model, self.gpus, self.da())
+            worker = _Worker(i, worker_end, self.model, self.gpus, self.da(), self)
             worker.start()
             self._workers.append(worker)
             self._pipes.append(pipe)
@@ -522,7 +525,6 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         print(log.train_loss())
 
     def test_one_epoch(self):
-        self.setup_workers()
         # initialization
         log = self.log
         test_x = self.test_x
@@ -530,7 +532,6 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         batch = self.batch
         test_batch_divide = self.test_batch_divide
         batch_of_batch = int(batch / test_batch_divide)
-        gpus = self.gpus
         categories = self.categories
         sum_loss = 0
         sum_accuracy = {}
@@ -543,40 +544,35 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         for ii, iii in itertools.product(elements, elements):
             false_accuracy[(ii, iii)] = 0
         progressbar = utility.create_progressbar(len(test_x), desc='test', stride=batch_of_batch)
-        self.Accuracy.clear(), self.Accuracy_5.clear(), self.Accuracy_false.clear()
-        [worker.Accuracy.clear() for worker in self._workers]
-        [worker.Accuracy_5.clear() for worker in self._workers]
-        [worker.Accuracy_false.clear() for worker in self._workers]
         for i in progressbar:
-            self.X.clear(), self.T.clear(), self.Loss.clear()
-            [(worker.X.clear(), worker.T.clear(), worker.Loss.clear()) for worker in self._workers]
             x = test_x[i:i + batch_of_batch]
             t = test_y[i:i + batch_of_batch]
-            n_img = int(float(len(x)) / len(gpus))
-            self.X = list(x[:n_img])
-            self.T = list(t[:n_img])
-            for i in six.moves.range(1, len(gpus)):
-                self._workers[i - 1].X.append(list(x[i * n_img: (i + 1) * n_img]))
-                self._workers[i - 1].T.append(list(t[i * n_img: (i + 1) * n_img]))
-                print(self._workers[i - 1].X)
-                print(len(self._workers[i - 1].X[0]))
-            self.test_core()
-        for i in six.moves.range(len(self._workers)):
-            self.Accuracy += self._workers[i].Accuracy
-            self.Accuracy_5 += self._workers[i].Accuracy_5
-            self.Accuracy_false += self._workers[i].Accuracy_false
-            self.Loss += self._workers[i].Loss
-        for tmp_accuracy in self.Accuracy:
-            for key in tmp_accuracy:
-                sum_accuracy[key] += tmp_accuracy[key]
-        for tmp_5_accuracy in self.Accuracy_5:
-            for key in tmp_5_accuracy:
-                sum_5_accuracy[key] += tmp_5_accuracy[key]
-        for tmp_false_accuracy in self.Accuracy_false:
-            for key in tmp_false_accuracy:
-                false_accuracy[key] += tmp_false_accuracy[key]
+            tmp_x = []
+            tmp_t = []
+            for i in six.moves.range(len(x)):
+                img, info = self.da.test(x[i])
+                if img is not None:
+                    tmp_x.append(img)
+                    tmp_t.append(t[i])
+            data_length = len(tmp_x)
+            train = False
+            x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.device)
+            t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.device)
+            y = self.model(x, train=train)
+            tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy = self.model.accuracy_n(y, t, n=5)
+            loss = self.model.calc_loss(y, t)
+            loss.to_cpu()
+            for tmp_accuracy in self.Accuracy:
+                for key in tmp_accuracy:
+                    sum_accuracy[key] += tmp_accuracy[key]
+            for tmp_5_accuracy in self.Accuracy_5:
+                for key in tmp_5_accuracy:
+                    sum_5_accuracy[key] += tmp_5_accuracy[key]
+            for tmp_false_accuracy in self.Accuracy_false:
+                for key in tmp_false_accuracy:
+                    false_accuracy[key] += tmp_false_accuracy[key]
+            sum_loss += float(loss.data) * data_length
         # sum_loss
-        sum_loss += np.sum(self.Loss)
         log({'loss': float(sum_loss)}, 'test_loss')
         # sum_accuracy
         num = 0
