@@ -434,7 +434,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             for ii in six.moves.range(0, len(indices), batch_of_batch):
                 x = train_x[indices[ii:ii + batch_of_batch]]
                 t = train_y[indices[ii:ii + batch_of_batch]]
-                sum_loss += self.update_core(x, t)
+                sum_loss += self.update_core(x, t) * len(gpus)
         log({'loss': float(sum_loss)}, 'train_loss')
         print(log.train_loss())
 
