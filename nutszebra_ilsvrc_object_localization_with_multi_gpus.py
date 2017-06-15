@@ -255,6 +255,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         self.load_log = load_log
         self.load_data = load_data
         self.da = da
+        self._da = da
         self.save_path = save_path
         self.epoch = epoch
         self.batch = batch
@@ -464,6 +465,16 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             t = test_y[i:i + batch_of_batch]
             tmp_x = []
             tmp_t = []
+
+            def process(x, t):
+                da = self._da()
+                da.test(x[i])
+                return (da.x, t)
+            args = list(zip(x, t))
+            with multiprocessing.Pool(8) as p:
+                processed = p.starmap(process, args)
+            x, t = list(zip(*processed))
+            p = multiprocessing.Pool()
             for i in six.moves.range(len(x)):
                 img, info = self.da.test(x[i])
                 if img is not None:
