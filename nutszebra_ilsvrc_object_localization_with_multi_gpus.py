@@ -465,7 +465,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             t = test_y[i:i + batch_of_batch]
             tmp_x = []
             tmp_t = []
-            args = list(zip(x, t))
+            args = list(zip(x, t, self._da))
             with multiprocessing.Pool(8) as p:
                 processed = p.starmap(process, args)
             x, t = list(zip(*processed))
