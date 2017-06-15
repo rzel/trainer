@@ -40,14 +40,6 @@ class _Worker(multiprocessing.Process):
         self.number_of_devices = len(gpus)
         self.batch = batch
         self.master = master
-        self.X = []
-        self.T = []
-        self.Loss = []
-        self.Divider = []
-        self.Accuracy = []
-        self.Accuracy_5 = []
-        self.Accuracy_false = []
-        self.dead_image = []
 
     def get(self, name):
         return self.__dict__[name]
@@ -279,13 +271,6 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         self._pipes = []
         self._workers = []
         self.communication = None
-        self.X = []
-        self.T = []
-        self.Loss = []
-        self.Divider = []
-        self.Accuracy = []
-        self.Accuracy_5 = []
-        self.Accuracy_false = []
 
     def data_init(self):
         data = nutszebra_load_ilsvrc_object_localization.LoadDataset(self.load_data)
@@ -486,15 +471,12 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy = self.model.accuracy_n(y, t, n=5)
             loss = self.model.calc_loss(y, t)
             loss.to_cpu()
-            for tmp_accuracy in self.Accuracy:
-                for key in tmp_accuracy:
-                    sum_accuracy[key] += tmp_accuracy[key]
-            for tmp_5_accuracy in self.Accuracy_5:
-                for key in tmp_5_accuracy:
-                    sum_5_accuracy[key] += tmp_5_accuracy[key]
-            for tmp_false_accuracy in self.Accuracy_false:
-                for key in tmp_false_accuracy:
-                    false_accuracy[key] += tmp_false_accuracy[key]
+            for key in tmp_accuracy:
+                sum_accuracy[key] += tmp_accuracy[key]
+            for key in tmp_5_accuracy:
+                sum_5_accuracy[key] += tmp_5_accuracy[key]
+            for key in tmp_false_accuracy:
+                false_accuracy[key] += tmp_false_accuracy[key]
             sum_loss += float(loss.data) * data_length
         # sum_loss
         log({'loss': float(sum_loss)}, 'test_loss')
