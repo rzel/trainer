@@ -42,6 +42,7 @@ class _Worker(multiprocessing.Process):
         self.master = master
         self.train_x = master.train_x
         self.train_y = master.train_y
+        self.train_batch_divide = master.train_batch_divide
         self.picture_number_at_each_categories = master.picture_number_at_each_categories
         self.sampling = sampling
 
