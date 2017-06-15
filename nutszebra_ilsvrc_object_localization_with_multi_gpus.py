@@ -465,11 +465,6 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             t = test_y[i:i + batch_of_batch]
             tmp_x = []
             tmp_t = []
-
-            def process(x, t):
-                da = self._da()
-                da.test(x[i])
-                return (da.x, t)
             args = list(zip(x, t))
             with multiprocessing.Pool(8) as p:
                 processed = p.starmap(process, args)
@@ -539,3 +534,9 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             log.generate_loss_figure('{}loss.jpg'.format(save_path))
             log.generate_accuracy_figure('{}accuracy.jpg'.format(save_path))
             log.save(save_path + 'log.json')
+
+
+def process(x, t, _da):
+    da = _da()
+    da.test(x)
+    return (da.x, t)
