@@ -389,7 +389,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         self.model.cleargrads()
         for i in six.moves.range(1, len(self.gpus)):
             pipe, worker_end = multiprocessing.Pipe()
-            worker = _Worker(i, worker_end, self.model, self.gpus, self.da(), self)
+            worker = _Worker(i, worker_end, self.model, self.gpus, self.da(), int(self.batch / len(self.gpus) / self.train_batch_divide), self)
             worker.start()
             self._workers.append(worker)
             self._pipes.append(pipe)
@@ -457,6 +457,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                                          null_stream.ptr)
 
     def test_core(self):
+        self.setup_workers()
         self.model.cleargrads()
         self._send_message(('test', None))
         with cuda.Device(self.gpus[0]):
