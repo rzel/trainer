@@ -470,7 +470,6 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             with multiprocessing.Pool(8) as p:
                 processed = p.starmap(process, args)
             tmp_x, tmp_t = list(zip(*processed))
-            p = multiprocessing.Pool()
             # for i in six.moves.range(len(x)):
             #     img, info = self.da.test(x[i])
             #     if img is not None:
