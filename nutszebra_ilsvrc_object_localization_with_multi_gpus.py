@@ -265,7 +265,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         self.test_batch_divide = test_batch_divide
         self.small_sample_training = small_sample_training
         # Generate dataset
-        self.train_x, self.train_y, self.test_x, self.test_y, self.picture_number_at_each_categories, self.categories = self.data_init()
+        self.train_x, self.train_y, self.test_x, self.test_y, self.picture_number_at_each_categories, self.categories, self._test = self.data_init()
         # Log module
         self.log = self.log_init()
         # initializing
@@ -304,7 +304,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         train_y = np.array(train_y)
         test_x = np.array(test_x)
         test_y = np.array(test_y)
-        return (train_x, train_y, test_x, test_y, picture_number_at_each_categories, categories)
+        return (train_x, train_y, test_x, test_y, picture_number_at_each_categories, categories, data.test)
 
     def log_init(self):
         load_log = self.load_log
@@ -516,6 +516,23 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         # show logs
         sen = [log.test_loss(), log.test_accuracy(max_flag=True), log.test_5_accuracy(max_flag=True)]
         print('\n'.join(sen))
+
+    def predict(self, test_x, da, batch=64, parallel=8):
+        results = {}
+        progressbar = utility.create_progressbar(len(test_x), desc='test', stride=batch)
+        for i in progressbar:
+            x = test_x[i:i + batch]
+            da = [da for _ in six.moves.range(len(x))]
+            args = list(zip(x, x, da))
+            with multiprocessing.Pool(parallel) as p:
+                processed = p.starmap(process, args)
+            tmp_x, filenames = list(zip(*processed))
+            train = False
+            x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpus[0])
+            y = self.model(x, train=train)
+            for i in six.moves.range(len(filenames)):
+                results[filenames[i]] = [float(num) for num in y.data[i]]
+        return results
 
     def run(self):
         log = self.log
