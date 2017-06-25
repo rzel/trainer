@@ -1159,6 +1159,7 @@ class DataAugmentationPicture(object):
         Returns:
             Optional([tuple, class]): If __no_record is False, return self, otherwise return tuple(shaped x, info)
         """
+        np.random.seed()
         # index
         index = 'bsv'.index(bsv)
         # save dtype
@@ -1234,6 +1235,7 @@ class DataAugmentationPicture(object):
         Returns:
             Optional([tuple, class]): If __no_record is False, return self, otherwise return tuple(shaped x, info)
         """
+        np.random.seed()
         height, width, channel = x_or_probability.shape
         indices = np.where(np.random.rand(height, width, channel) <= probability)
         answer = x_or_probability.copy()
@@ -1279,6 +1281,7 @@ class DataAugmentationPicture(object):
         Returns:
             Optional([tuple, class]): If __no_record is False, return self, otherwise return tuple(shaped x, info)
         """
+        np.random.seed()
         floor, ceil = probability_range
         probability = np.random.rand() * (ceil - floor) + floor
         height, width, channel = x_or_probability.shape
@@ -1314,6 +1317,7 @@ class DataAugmentationPicture(object):
         Returns:
             Optional([tuple, class]): If __no_record is False, return self, otherwise return tuple(shaped x, info)
         """
+        np.random.seed()
         random_value = np.random.uniform(low, high)
         return (imrotate(x_or_probability, random_value, reshape=True), {'random_value': random_value})
 
@@ -1368,6 +1372,7 @@ class DataAugmentationPicture(object):
         """
             URL: https://github.com/facebookresearch/ResNeXt/tree/master/datasets
         """
+        np.random.seed()
         x_or_probability = x_or_probability.astype(dtype)
         alpha = np.tile(np.random.normal(0, alphastd, (1, 3)), (3, 1))
         eigval = np.tile(eigval, (3, 1))
