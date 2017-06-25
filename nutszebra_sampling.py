@@ -528,7 +528,7 @@ class Sampling(object):
         Returns:
             numpy.ndarray: randomyly sampled permutation
         """
-
+        np.random.seed()
         # they have to be int
         epoch = int(epoch)
         pick_number = int(pick_number)
@@ -588,7 +588,7 @@ class Sampling(object):
         Returns:
             numpy.ndarray: randomyly sampled permutation
         """
-
+        np.random.seed()
         pick_number = int(pick_number)
         sample_number = int(sample_number)
         sort = bool(sort)
