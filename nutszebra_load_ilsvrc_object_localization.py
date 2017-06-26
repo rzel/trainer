@@ -23,6 +23,7 @@ class LoadDataset(Assignment):
         super(LoadDataset, self).__init__()
         ilsvrc_path = ilsvrc_path[:-1] if ilsvrc_path[-1] == '/' else ilsvrc_path
         for f in self.filename:
+            print(f)
             key = f.split('.')[0]
             if 'train' in f:
                 self[key] = self._train('{}/ImageSets/CLS-LOC/{}'.format(ilsvrc_path, f), '{}/Data/CLS-LOC/train'.format(ilsvrc_path))
