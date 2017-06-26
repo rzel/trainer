@@ -218,12 +218,12 @@ class TrainIlsvrcObjectLocalizationClassification(object):
     def predict(self, test_x, da, batch=64, parallel=8):
         results = {}
         progressbar = utility.create_progressbar(len(test_x), desc='test', stride=batch)
+        p = multiprocessing.Pool(parallel)
         for i in progressbar:
             x = test_x[i:i + batch]
-            da = [da for _ in six.moves.range(len(x))]
-            args = list(zip(x, x, da))
-            with multiprocessing.Pool(parallel) as p:
-                processed = p.starmap(process, args)
+            _da = [da for _ in six.moves.range(len(x))]
+            args = list(zip(x, x, _da))
+            processed = p.starmap(process, args)
             tmp_x, filenames = list(zip(*processed))
             train = False
             x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpu)
