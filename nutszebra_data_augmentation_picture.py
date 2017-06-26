@@ -967,6 +967,61 @@ class DataAugmentationPicture(object):
         return (DataAugmentationPicture.crop_picture(x_or_probability, keypoints), {'keypoints': keypoints})
 
     @execute_based_on_probability
+    def crop_upper_left(self, x_or_probability, sizes=(384, 384)):
+        y, x, channel = x_or_probability.shape
+        frame_y, frame_x = sizes
+        start_y = 0
+        end_y = min(frame_y, y)
+        start_x = 0
+        end_x = min(frame_x, x)
+        keypoints = ((start_y, end_y), (start_x, end_x))
+        return (DataAugmentationPicture.crop_picture(x_or_probability, keypoints), {'keypoints': keypoints})
+
+    @execute_based_on_probability
+    def crop_top_left(self, x_or_probability, sizes=(384, 384)):
+        y, x, channel = x_or_probability.shape
+        frame_y, frame_x = sizes
+        start_y = 0
+        end_y = min(frame_y, y)
+        start_x = 0
+        end_x = min(frame_x, x)
+        keypoints = ((start_y, end_y), (start_x, end_x))
+        return (DataAugmentationPicture.crop_picture(x_or_probability, keypoints), {'keypoints': keypoints})
+
+    @execute_based_on_probability
+    def crop_bottom_left(self, x_or_probability, sizes=(384, 384)):
+        y, x, channel = x_or_probability.shape
+        frame_y, frame_x = sizes
+        start_y = max(y - frame_y, 0)
+        end_y = y
+        start_x = 0
+        end_x = min(frame_x, x)
+        keypoints = ((start_y, end_y), (start_x, end_x))
+        return (DataAugmentationPicture.crop_picture(x_or_probability, keypoints), {'keypoints': keypoints})
+
+    @execute_based_on_probability
+    def crop_top_right(self, x_or_probability, sizes=(384, 384)):
+        y, x, channel = x_or_probability.shape
+        frame_y, frame_x = sizes
+        start_y = 0
+        end_y = min(frame_y, y)
+        start_x = max(x - frame_x, 0)
+        end_x = x
+        keypoints = ((start_y, end_y), (start_x, end_x))
+        return (DataAugmentationPicture.crop_picture(x_or_probability, keypoints), {'keypoints': keypoints})
+
+    @execute_based_on_probability
+    def crop_bottom_right(self, x_or_probability, sizes=(384, 384)):
+        y, x, channel = x_or_probability.shape
+        frame_y, frame_x = sizes
+        start_y = max(y - frame_y, 0)
+        end_y = y
+        start_x = max(x - frame_x, 0)
+        end_x = x
+        keypoints = ((start_y, end_y), (start_x, end_x))
+        return (DataAugmentationPicture.crop_picture(x_or_probability, keypoints), {'keypoints': keypoints})
+
+    @execute_based_on_probability
     def subtract_local_mean(self, x_or_probability):
         """Subtract local mean
 
