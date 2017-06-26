@@ -70,7 +70,6 @@ class LoadDataset(Assignment):
     def _val(path, prefix1, prefix2):
         val = defaultdict(list)
         for line in utility.yield_text(path):
-            print(line)
             name = line.split(' ')[0]
             for obj in ET.parse('{}/{}.xml'.format(prefix2, name)).getroot().findall('object'):
                 key = obj.find('name').text
