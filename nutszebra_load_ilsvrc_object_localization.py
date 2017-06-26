@@ -22,8 +22,9 @@ class LoadDataset(Assignment):
     def __init__(self, ilsvrc_path, flag_debug=False):
         super(LoadDataset, self).__init__()
         ilsvrc_path = ilsvrc_path[:-1] if ilsvrc_path[-1] == '/' else ilsvrc_path
+        print('loading ILSVRC dataset')
         for f in self.filename:
-            print(f)
+            print('    {}'.format(f))
             key = f.split('.')[0]
             if 'train' in f:
                 self[key] = self._train('{}/ImageSets/CLS-LOC/{}'.format(ilsvrc_path, f), '{}/Data/CLS-LOC/train'.format(ilsvrc_path))
@@ -69,6 +70,7 @@ class LoadDataset(Assignment):
     def _val(path, prefix1, prefix2):
         val = defaultdict(list)
         for line in utility.yield_text(path):
+            print(line)
             name = line.split(' ')[0]
             for obj in ET.parse('{}/{}.xml'.format(prefix2, name)).getroot().findall('object'):
                 key = obj.find('name').text
