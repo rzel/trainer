@@ -4,13 +4,13 @@ import numpy as np
 from chainer import serializers
 import nutszebra_log2
 import nutszebra_utility
-import nutszebra_log_model
 import nutszebra_sampling
 import nutszebra_load_ilsvrc_object_localization
 import nutszebra_preprocess_picture
 import nutszebra_data_augmentation_picture
 import nutszebra_data_augmentation
 import nutszebra_basic_print
+import multiprocessing
 
 Da = nutszebra_data_augmentation_picture.DataAugmentationPicture()
 sampling = nutszebra_sampling.Sampling()
@@ -37,7 +37,7 @@ class TrainIlsvrcObjectLocalizationClassification(object):
         self.train_batch_divide = train_batch_divide
         self.test_batch_divide = test_batch_divide
         self.small_sample_training = small_sample_training
-        self.train_x, self.train_y, self.test_x, self.test_y, self.picture_number_at_each_categories, self.categories = self.data_init()
+        self.train_x, self.train_y, self.test_x, self.test_y, self.picture_number_at_each_categories, self.categories, self._test = self.data_init()
         self.log = self.log_init()
         self.model_init()
         self.save_path = save_path if save_path[-1] == '/' else save_path + '/'
@@ -68,7 +68,7 @@ class TrainIlsvrcObjectLocalizationClassification(object):
         train_y = np.array(train_y)
         test_x = np.array(test_x)
         test_y = np.array(test_y)
-        return (train_x, train_y, test_x, test_y, picture_number_at_each_categories, categories)
+        return (train_x, train_y, test_x, test_y, picture_number_at_each_categories, categories, data.test)
 
     def log_init(self):
         load_log = self.load_log
@@ -215,6 +215,23 @@ class TrainIlsvrcObjectLocalizationClassification(object):
         sen = [log.test_loss(), log.test_accuracy(max_flag=True), log.test_5_accuracy(max_flag=True)]
         print('\n'.join(sen))
 
+    def predict(self, test_x, da, batch=64, parallel=8):
+        results = {}
+        progressbar = utility.create_progressbar(len(test_x), desc='test', stride=batch)
+        for i in progressbar:
+            x = test_x[i:i + batch]
+            da = [da for _ in six.moves.range(len(x))]
+            args = list(zip(x, x, da))
+            with multiprocessing.Pool(parallel) as p:
+                processed = p.starmap(process, args)
+            tmp_x, filenames = list(zip(*processed))
+            train = False
+            x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpus[0])
+            y = self.model(x, train=train)
+            for i in six.moves.range(len(filenames)):
+                results[filenames[i]] = [float(num) for num in y.data[i]]
+        return results
+
     def run(self):
         log = self.log
         model = self.model
@@ -233,3 +250,9 @@ class TrainIlsvrcObjectLocalizationClassification(object):
             log.generate_loss_figure('{}loss.jpg'.format(save_path))
             log.generate_accuracy_figure('{}accuracy.jpg'.format(save_path))
             log.save(save_path + 'log.json')
+
+
+def process(x, t, _da):
+    da = _da()
+    x, info = da.test(x)
+    return (x, t)
