@@ -228,6 +228,7 @@ class TrainIlsvrcObjectLocalizationClassification(object):
             train = False
             x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpu)
             y = self.model(x, train=train)
+            y.to_cpu()
             for i in six.moves.range(len(filenames)):
                 results[filenames[i]] = [float(num) for num in y.data[i]]
         return results
