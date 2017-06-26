@@ -226,7 +226,7 @@ class TrainIlsvrcObjectLocalizationClassification(object):
                 processed = p.starmap(process, args)
             tmp_x, filenames = list(zip(*processed))
             train = False
-            x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpus[0])
+            x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpu)
             y = self.model(x, train=train)
             for i in six.moves.range(len(filenames)):
                 results[filenames[i]] = [float(num) for num in y.data[i]]
