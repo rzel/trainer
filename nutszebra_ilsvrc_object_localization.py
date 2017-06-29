@@ -231,6 +231,7 @@ class TrainIlsvrcObjectLocalizationClassification(object):
             y.to_cpu()
             for i in six.moves.range(len(filenames)):
                 results[filenames[i]] = [float(num) for num in y.data[i]]
+        p.close()
         return results
 
     def learn_bn_statistics(self, test_x, da, batch=64, parallel=8):
