@@ -233,6 +233,20 @@ class TrainIlsvrcObjectLocalizationClassification(object):
                 results[filenames[i]] = [float(num) for num in y.data[i]]
         return results
 
+    def learn_bn_statistics(self, test_x, da, batch=64, parallel=8):
+        progressbar = utility.create_progressbar(len(test_x), desc='test', stride=batch)
+        p = multiprocessing.Pool(parallel)
+        for i in progressbar:
+            x = test_x[i:i + batch]
+            _da = [da for _ in six.moves.range(len(x))]
+            args = list(zip(x, x, _da))
+            processed = p.starmap(process, args)
+            tmp_x, filenames = list(zip(*processed))
+            train = True
+            x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpu)
+            y = self.model(x, train=train)
+            del x, y
+
     def run(self):
         log = self.log
         model = self.model
