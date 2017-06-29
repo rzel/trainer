@@ -247,6 +247,7 @@ class TrainIlsvrcObjectLocalizationClassification(object):
             x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpu)
             y = self.model(x, train=train)
             del x, y
+        p.close()
 
     def run(self):
         log = self.log
