@@ -70,7 +70,7 @@ class _Worker(multiprocessing.Process):
             if job == 'update':
                 # for reducing memory
                 self.model.cleargrads()
-                indices = list(sampling.yield_random_batch_samples(int(1, self.batch, len(self.train_x), sort=False)))[0]
+                indices = list(sampling.yield_random_batch_samples(1, self.batch, len(self.train_x), sort=False))[0]
                 x = self.train_x[indices]
                 t = self.train_y[indices]
                 tmp_x = []
