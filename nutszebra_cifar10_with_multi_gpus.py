@@ -491,7 +491,7 @@ class TrainCifar10WithMultiGpus(object):
                 value = false_accuracy[key]
                 log({'accuracy': int(value)}, 'test_accuracy_{}_{}'.format(key[0], key[1]))
         # show logs
-        sen = [log.test_loss(), log.test_accuracy(max_flag=True), log.test_5_accuracy(max_flag=True)]
+        sen = [log.test_loss(), log.test_accuracy(max_flag=True)]
         print('\n'.join(sen))
 
     def run(self):
