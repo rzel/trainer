@@ -282,6 +282,8 @@ class TrainCifar10WithMultiGpus(object):
         self._pipes = []
         self._workers = []
         self.communication = None
+        self.da_args = [self.da() for _ in six.moves.range(self.batch)]
+        self.p = multiprocessing.Pool(self.parallel)
 
     def data_init(self):
         dl = nutszebra_download_cifar10.Cifar10()
@@ -352,13 +354,16 @@ class TrainCifar10WithMultiGpus(object):
         self._send_message(('update', None))
         with cuda.Device(self.gpus[0]):
             self.model.cleargrads()
-            tmp_x = []
-            tmp_t = []
-            for i in six.moves.range(len(x)):
-                img, info = self.da.train(x[i])
-                if img is not None:
-                    tmp_x.append(img)
-                    tmp_t.append(t[i])
+            # tmp_x = []
+            # tmp_t = []
+            # for i in six.moves.range(len(x)):
+            #     img, info = self.da.train(x[i])
+            #     if img is not None:
+            #         tmp_x.append(img)
+            #         tmp_t.append(t[i])
+            args = list(six.moves.zip(x, t, self.da_args))
+            processed = self.p.starmap(process_train, args)
+            tmp_x, tmp_t = list(zip(*processed))
             train = True
             data_length = len(tmp_x)
             x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpus[0])
@@ -441,6 +446,7 @@ class TrainCifar10WithMultiGpus(object):
         sum_5_accuracy = {}
         false_accuracy = {}
         p = multiprocessing.Pool(self.parallel)
+        da = [self._da() for _ in six.moves.range(batch)]
         for ii in six.moves.range(len(categories)):
             sum_accuracy[ii] = 0
             sum_5_accuracy[ii] = 0
@@ -451,7 +457,6 @@ class TrainCifar10WithMultiGpus(object):
         for i in progressbar:
             x = test_x[i:i + batch_of_batch]
             t = test_y[i:i + batch_of_batch]
-            da = [self._da for _ in six.moves.range(len(x))]
             tmp_x = []
             tmp_t = []
             args = list(zip(x, t, da))
@@ -511,8 +516,7 @@ class TrainCifar10WithMultiGpus(object):
             log.save(save_path + 'log.json')
 
 
-def process(x, t, _da):
-    da = _da()
+def process(x, t, da):
     x, info = da.test(x)
     return (x, t)
 
