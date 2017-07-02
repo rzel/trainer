@@ -72,7 +72,7 @@ class _Worker(multiprocessing.Process):
                 break
             if job == 'update':
                 # for reducing memory
-                self.model.cleargrads()
+                self.model.zerograds()
                 indices = list(sampling.yield_random_batch_samples(1, self.batch, len(self.train_x), sort=False))[0]
                 x = self.train_x[indices]
                 t = self.train_y[indices]
@@ -108,7 +108,7 @@ class _Worker(multiprocessing.Process):
                                           0,
                                           null_stream.ptr)
                 del gg
-                self.model.cleargrads()
+                self.model.zerograds()
                 # send parameters of self.model
                 gp = gather_params(self.model)
                 self.communication.bcast(gp.data.ptr,
@@ -333,7 +333,7 @@ class TrainCifar10WithMultiGpus(object):
             return
         self._initialized = True
 
-        self.model.cleargrads()
+        self.model.zerograds()
         for i in six.moves.range(1, len(self.gpus)):
             pipe, worker_end = multiprocessing.Pipe()
             worker = _Worker(i, worker_end, self.model, self.gpus, self.da, int(self.batch / len(self.gpus) / self.train_batch_divide), self)
@@ -353,7 +353,7 @@ class TrainCifar10WithMultiGpus(object):
     def update_core(self, x, t):
         self._send_message(('update', None))
         with cuda.Device(self.gpus[0]):
-            self.model.cleargrads()
+            self.model.zerograds()
             # tmp_x = []
             # tmp_t = []
             # for i in six.moves.range(len(x)):
