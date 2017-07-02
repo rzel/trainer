@@ -1,3 +1,6 @@
+# To make forward fast
+import os
+os.environ["CHAINER_TYPE_CHECK"] = "0"
 import six
 import itertools
 import numpy as np
@@ -67,6 +70,7 @@ class _Worker(multiprocessing.Process):
         gp = None
         da_args = [self.da() for _ in six.moves.range(self.batch)]
         p = multiprocessing.Pool(self.parallel)
+        batch_of_batch = int(float(self.batch) / self.train_batch_divide)
         while True:
             job, data = self.pipe.recv()
             if job == 'finalize':
@@ -76,28 +80,22 @@ class _Worker(multiprocessing.Process):
                 # for reducing memory
                 self.model.zerograds()
                 indices = list(self.sampling.yield_random_batch_samples(1, self.batch, len(self.train_x), sort=False))[0]
-                x = self.train_x[indices]
-                t = self.train_y[indices]
-                args = list(six.moves.zip(x, t, da_args))
-                processed = p.starmap(process_train, args)
-                tmp_x, tmp_t = list(zip(*processed))
-                # for i in six.moves.range(len(x)):
-                #     img, info = self.da.train(x[i])
-                #     if img is not None:
-                #         tmp_x.append(img)
-                #         tmp_t.append(t[i])
-                # tmp_x = Da.zero_padding(tmp_x)
-                train = True
-                x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.device)
-                t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.device)
-                y = self.model(x, train=train)
-                loss = self.model.calc_loss(y, t) / self.number_of_devices / self.train_batch_divide
-                loss.backward()
-
-                del x
-                del t
-                del y
-                del loss
+                for ii in six.moves.range(0, len(indices), batch_of_batch):
+                    x = self.train_x[indices[ii:ii + batch_of_batch]]
+                    t = self.train_y[indices[ii:ii + batch_of_batch]]
+                    args = list(six.moves.zip(x, t, da_args))
+                    processed = p.starmap(process_train, args)
+                    tmp_x, tmp_t = list(zip(*processed))
+                    train = True
+                    x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.device)
+                    t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.device)
+                    y = self.model(x, train=train)
+                    loss = self.model.calc_loss(y, t) / self.number_of_devices / self.train_batch_divide
+                    loss.backward()
+                    del x
+                    del t
+                    del y
+                    del loss
 
                 # send gradients of self.model
                 gg = gather_grads(self.model)
@@ -416,50 +414,37 @@ class TrainCifar10WithMultiGpus(object):
     def train_one_epoch(self):
         self.setup_workers()
         # initialization
-        log = self.log
-        train_x = self.train_x
-        train_y = self.train_y
-        batch = self.batch
-        gpus = self.gpus
-        train_batch_divide = self.train_batch_divide
-        batch_of_batch = int(float(batch) / len(gpus) / train_batch_divide)
+        batch_of_batch = int(float(self.batch) / len(self.gpus) / self.train_batch_divide)
         sum_loss = 0
-        yielder = self.sampling.yield_random_batch_samples(int(len(train_x) / batch), int(float(self.batch) / len(self.gpus)), len(train_x), sort=False)
-        progressbar = utility.create_progressbar(int(len(train_x) / batch), desc='train', stride=1)
+        yielder = self.sampling.yield_random_batch_samples(int(len(self.train_x) / self.batch), int(float(self.batch) / len(self.gpus)), len(self.train_x), sort=False)
+        progressbar = utility.create_progressbar(int(len(self.train_x) / self.batch), desc='train', stride=1)
         # train start
         for _, indices in six.moves.zip(progressbar, yielder):
             for ii in six.moves.range(0, len(indices), batch_of_batch):
-                x = train_x[indices[ii:ii + batch_of_batch]]
-                t = train_y[indices[ii:ii + batch_of_batch]]
-                sum_loss += self.update_core(x, t) * len(gpus)
-        log({'loss': float(sum_loss)}, 'train_loss')
-        print(log.train_loss())
+                x = self.train_x[indices[ii:ii + batch_of_batch]]
+                t = self.train_y[indices[ii:ii + batch_of_batch]]
+                sum_loss += self.update_core(x, t) * len(self.gpus)
+        self.log({'loss': float(sum_loss)}, 'train_loss')
+        print(self.log.train_loss())
 
     def test_one_epoch(self):
         self.setup_workers()
-        # initialization
-        log = self.log
-        test_x = self.test_x
-        test_y = self.test_y
-        batch = self.batch
-        test_batch_divide = self.test_batch_divide
-        batch_of_batch = int(batch / test_batch_divide)
-        categories = self.categories
+        batch_of_batch = int(self.batch / self.test_batch_divide)
         sum_loss = 0
         sum_accuracy = {}
         sum_5_accuracy = {}
         false_accuracy = {}
-        da = [self._da() for _ in six.moves.range(batch)]
-        for ii in six.moves.range(len(categories)):
+        for ii in six.moves.range(len(self.categories)):
             sum_accuracy[ii] = 0
             sum_5_accuracy[ii] = 0
-        elements = six.moves.range(len(categories))
+        elements = six.moves.range(len(self.categories))
         for ii, iii in itertools.product(elements, elements):
             false_accuracy[(ii, iii)] = 0
-        progressbar = utility.create_progressbar(len(test_x), desc='test', stride=batch_of_batch)
+        da = [self._da() for _ in six.moves.range(self.batch)]
+        progressbar = utility.create_progressbar(len(self.test_x), desc='test', stride=batch_of_batch)
         for i in progressbar:
-            x = test_x[i:i + batch_of_batch]
-            t = test_y[i:i + batch_of_batch]
+            x = self.test_x[i:i + batch_of_batch]
+            t = self.test_y[i:i + batch_of_batch]
             tmp_x = []
             tmp_t = []
             args = list(zip(x, t, da))
@@ -470,32 +455,34 @@ class TrainCifar10WithMultiGpus(object):
             x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpus[0])
             t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.gpus[0])
             y = self.model(x, train=train)
+            # accuracy
             tmp_accuracy, tmp_false_accuracy = self.model.accuracy(y, t)
-            loss = self.model.calc_loss(y, t)
-            loss.to_cpu()
             for key in tmp_accuracy:
                 sum_accuracy[key] += tmp_accuracy[key]
             for key in tmp_false_accuracy:
                 false_accuracy[key] += tmp_false_accuracy[key]
+            # loss
+            loss = self.model.calc_loss(y, t)
+            loss.to_cpu()
             sum_loss += float(loss.data) * data_length
         # sum_loss
-        log({'loss': float(sum_loss)}, 'test_loss')
+        self.log({'loss': float(sum_loss)}, 'test_loss')
         # sum_accuracy
         num = 0
         for key in sum_accuracy:
             value = sum_accuracy[key]
-            log({'accuracy': int(value)}, 'test_accuracy_{}'.format(key))
+            self.log({'accuracy': int(value)}, 'test_accuracy_{}'.format(key))
             num += value
-        log({'accuracy': int(num)}, 'test_accuracy')
+        self.log({'accuracy': int(num)}, 'test_accuracy')
         # false_accuracy
         for key in false_accuracy:
             if key[0] == key[1]:
                 pass
             else:
                 value = false_accuracy[key]
-                log({'accuracy': int(value)}, 'test_accuracy_{}_{}'.format(key[0], key[1]))
+                self.log({'accuracy': int(value)}, 'test_accuracy_{}_{}'.format(key[0], key[1]))
         # show logs
-        sen = [log.test_loss(), log.test_accuracy(max_flag=True)]
+        sen = [self.log.test_loss(), self.log.test_accuracy(max_flag=True)]
         print('\n'.join(sen))
 
     def run(self):
