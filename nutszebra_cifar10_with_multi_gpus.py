@@ -44,6 +44,7 @@ class _Worker(multiprocessing.Process):
         self.train_y = master.train_y
         self.train_batch_divide = master.train_batch_divide
         self.picture_number_at_each_categories = master.picture_number_at_each_categories
+        self.parallel = master.parallel
         self.sampling = sampling
 
     def get(self, name):
@@ -62,6 +63,8 @@ class _Worker(multiprocessing.Process):
         # build communication via nccl
         self.setup()
         gp = None
+        da_args = [self.da() for _ in six.moves.range(self.batch)]
+        p = multiprocessing.Pool(self.parallel)
         while True:
             job, data = self.pipe.recv()
             if job == 'finalize':
@@ -73,8 +76,11 @@ class _Worker(multiprocessing.Process):
                 indices = list(sampling.yield_random_batch_samples(1, self.batch, len(self.train_x), sort=False))[0]
                 x = self.train_x[indices]
                 t = self.train_y[indices]
+                args = list(six.moves.zip(x, t, da_args))
+                processed = p.starmap(process, args)
                 tmp_x = []
                 tmp_t = []
+                tmp_x, tmp_t = list(zip(*processed))
                 for i in six.moves.range(len(x)):
                     img, info = self.da.train(x[i])
                     if img is not None:
@@ -247,7 +253,7 @@ def scatter_params(link, array):
 
 class TrainCifar10WithMultiGpus(object):
 
-    def __init__(self, model=None, optimizer=None, load_model=None, load_optimizer=None, load_log=None, load_data=None, da=nutszebra_data_augmentation.DataAugmentationNormalizeBigger, save_path='./', epoch=200, batch=128, gpus=(0, 1, 2, 3), start_epoch=1, train_batch_divide=1, test_batch_divide=1):
+    def __init__(self, model=None, optimizer=None, load_model=None, load_optimizer=None, load_log=None, load_data=None, da=nutszebra_data_augmentation.DataAugmentationNormalizeBigger, save_path='./', epoch=200, batch=128, gpus=(0, 1, 2, 3), start_epoch=1, train_batch_divide=1, test_batch_divide=1, parallel=8):
         self.model = model
         self.optimizer = optimizer
         self.load_model = load_model
@@ -263,6 +269,7 @@ class TrainCifar10WithMultiGpus(object):
         self.start_epoch = start_epoch
         self.train_batch_divide = train_batch_divide
         self.test_batch_divide = test_batch_divide
+        self.parallel = parallel
         # Generate dataset
         self.train_x, self.train_y, self.test_x, self.test_y, self.picture_number_at_each_categories, self.categories = self.data_init()
         # Log module
@@ -329,14 +336,13 @@ class TrainCifar10WithMultiGpus(object):
         self.model.cleargrads()
         for i in six.moves.range(1, len(self.gpus)):
             pipe, worker_end = multiprocessing.Pipe()
-            worker = _Worker(i, worker_end, self.model, self.gpus, self.da(), int(self.batch / len(self.gpus) / self.train_batch_divide), self)
+            worker = _Worker(i, worker_end, self.model, self.gpus, self.da, int(self.batch / len(self.gpus) / self.train_batch_divide), self)
             worker.start()
             self._workers.append(worker)
             self._pipes.append(pipe)
 
         with cuda.Device(self.gpus[0]):
             self.model.to_gpu(self.gpus[0])
-            self.da = self.da()
             if len(self.gpus) > 1:
                 communication_id = nccl.get_unique_id()
                 self._send_message(("set comm_id", communication_id))
@@ -436,6 +442,7 @@ class TrainCifar10WithMultiGpus(object):
         sum_accuracy = {}
         sum_5_accuracy = {}
         false_accuracy = {}
+        p = multiprocessing.Pool(self.parallel)
         for ii in six.moves.range(len(categories)):
             sum_accuracy[ii] = 0
             sum_5_accuracy[ii] = 0
@@ -450,14 +457,8 @@ class TrainCifar10WithMultiGpus(object):
             tmp_x = []
             tmp_t = []
             args = list(zip(x, t, da))
-            with multiprocessing.Pool(8) as p:
-                processed = p.starmap(process, args)
+            processed = p.starmap(process, args)
             tmp_x, tmp_t = list(zip(*processed))
-            # for i in six.moves.range(len(x)):
-            #     img, info = self.da.test(x[i])
-            #     if img is not None:
-            #         tmp_x.append(img)
-            #         tmp_t.append(t[i])
             data_length = len(tmp_x)
             train = False
             x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpus[0])
@@ -471,6 +472,8 @@ class TrainCifar10WithMultiGpus(object):
             for key in tmp_false_accuracy:
                 false_accuracy[key] += tmp_false_accuracy[key]
             sum_loss += float(loss.data) * data_length
+        # close test
+        p.close()
         # sum_loss
         log({'loss': float(sum_loss)}, 'test_loss')
         # sum_accuracy
@@ -513,4 +516,10 @@ class TrainCifar10WithMultiGpus(object):
 def process(x, t, _da):
     da = _da()
     x, info = da.test(x)
+    return (x, t)
+
+
+def process_train(x, t, _da):
+    da = _da()
+    x, info = da.train(x)
     return (x, t)
