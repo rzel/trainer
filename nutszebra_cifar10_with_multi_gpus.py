@@ -78,14 +78,12 @@ class _Worker(multiprocessing.Process):
                 t = self.train_y[indices]
                 args = list(six.moves.zip(x, t, da_args))
                 processed = p.starmap(process_train, args)
-                tmp_x = []
-                tmp_t = []
                 tmp_x, tmp_t = list(zip(*processed))
-                for i in six.moves.range(len(x)):
-                    img, info = self.da.train(x[i])
-                    if img is not None:
-                        tmp_x.append(img)
-                        tmp_t.append(t[i])
+                # for i in six.moves.range(len(x)):
+                #     img, info = self.da.train(x[i])
+                #     if img is not None:
+                #         tmp_x.append(img)
+                #         tmp_t.append(t[i])
                 # tmp_x = Da.zero_padding(tmp_x)
                 train = True
                 x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.device)
