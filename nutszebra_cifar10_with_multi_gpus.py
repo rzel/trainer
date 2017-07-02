@@ -77,7 +77,7 @@ class _Worker(multiprocessing.Process):
                 x = self.train_x[indices]
                 t = self.train_y[indices]
                 args = list(six.moves.zip(x, t, da_args))
-                processed = p.starmap(process, args)
+                processed = p.starmap(process_train, args)
                 tmp_x = []
                 tmp_t = []
                 tmp_x, tmp_t = list(zip(*processed))
