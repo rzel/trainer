@@ -519,7 +519,6 @@ def process(x, t, _da):
     return (x, t)
 
 
-def process_train(x, t, _da):
-    da = _da()
+def process_train(x, t, da):
     x, info = da.train(x)
     return (x, t)
