@@ -463,13 +463,11 @@ class TrainCifar10WithMultiGpus(object):
             x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpus[0])
             t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.gpus[0])
             y = self.model(x, train=train)
-            tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy = self.model.accuracy_n(y, t, n=5)
+            tmp_accuracy, tmp_false_accuracy = self.model.accuracy_n(y, t)
             loss = self.model.calc_loss(y, t)
             loss.to_cpu()
             for key in tmp_accuracy:
                 sum_accuracy[key] += tmp_accuracy[key]
-            for key in tmp_5_accuracy:
-                sum_5_accuracy[key] += tmp_5_accuracy[key]
             for key in tmp_false_accuracy:
                 false_accuracy[key] += tmp_false_accuracy[key]
             sum_loss += float(loss.data) * data_length
@@ -482,13 +480,6 @@ class TrainCifar10WithMultiGpus(object):
             log({'accuracy': int(value)}, 'test_accuracy_{}'.format(key))
             num += value
         log({'accuracy': int(num)}, 'test_accuracy')
-        # sum_5_accuracy
-        num = 0
-        for key in sum_5_accuracy:
-            value = sum_5_accuracy[key]
-            log({'accuracy': int(value)}, 'test_5_accuracy_{}'.format(key))
-            num += value
-        log({'accuracy': int(num)}, 'test_5_accuracy')
         # false_accuracy
         for key in false_accuracy:
             if key[0] == key[1]:
