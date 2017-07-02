@@ -70,7 +70,7 @@ class _Worker(multiprocessing.Process):
             if job == 'update':
                 # for reducing memory
                 self.model.cleargrads()
-                indices = list(self.sampling.yield_random_batch_from_category(1, self.picture_number_at_each_categories, self.batch, shuffle=True))[0]
+                indices = list(sampling.yield_random_batch_samples(int(1, self.batch, len(self.train_x), sort=False)))[0]
                 x = self.train_x[indices]
                 t = self.train_y[indices]
                 tmp_x = []
@@ -247,7 +247,7 @@ def scatter_params(link, array):
 
 class TrainCifar10WithMultiGpus(object):
 
-    def __init__(self, model=None, optimizer=None, load_model=None, load_optimizer=None, load_log=None, load_data=None, da=nutszebra_data_augmentation.DataAugmentationNormalizeBigger, save_path='./', epoch=100, batch=128, gpus=(0, 1, 2, 3), start_epoch=1, train_batch_divide=2, test_batch_divide=2, small_sample_training=None):
+    def __init__(self, model=None, optimizer=None, load_model=None, load_optimizer=None, load_log=None, load_data=None, da=nutszebra_data_augmentation.DataAugmentationNormalizeBigger, save_path='./', epoch=200, batch=128, gpus=(0, 1, 2, 3), start_epoch=1, train_batch_divide=1, test_batch_divide=1):
         self.model = model
         self.optimizer = optimizer
         self.load_model = load_model
@@ -263,7 +263,6 @@ class TrainCifar10WithMultiGpus(object):
         self.start_epoch = start_epoch
         self.train_batch_divide = train_batch_divide
         self.test_batch_divide = test_batch_divide
-        self.small_sample_training = small_sample_training
         # Generate dataset
         self.train_x, self.train_y, self.test_x, self.test_y, self.picture_number_at_each_categories, self.categories = self.data_init()
         # Log module
@@ -412,7 +411,7 @@ class TrainCifar10WithMultiGpus(object):
         train_batch_divide = self.train_batch_divide
         batch_of_batch = int(float(batch) / len(gpus) / train_batch_divide)
         sum_loss = 0
-        yielder = self.sampling.yield_random_batch_from_category(int(len(train_x) / batch), self.picture_number_at_each_categories, int(float(batch) / len(gpus)), shuffle=True)
+        yielder = sampling.yield_random_batch_samples(int(len(train_x) / batch), batch, len(train_x), sort=False)
         progressbar = utility.create_progressbar(int(len(train_x) / batch), desc='train', stride=1)
         # train start
         for _, indices in six.moves.zip(progressbar, yielder):
