@@ -463,7 +463,7 @@ class TrainCifar10WithMultiGpus(object):
             x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpus[0])
             t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.gpus[0])
             y = self.model(x, train=train)
-            tmp_accuracy, tmp_false_accuracy = self.model.accuracy_n(y, t)
+            tmp_accuracy, tmp_false_accuracy = self.model.accuracy(y, t)
             loss = self.model.calc_loss(y, t)
             loss.to_cpu()
             for key in tmp_accuracy:
