@@ -73,7 +73,7 @@ class _Worker(multiprocessing.Process):
             if job == 'update':
                 # for reducing memory
                 self.model.zerograds()
-                indices = list(sampling.yield_random_batch_samples(1, int(float(self.batch) / len(self.number_of_devices)), len(self.train_x), sort=False))[0]
+                indices = list(self.sampling.yield_random_batch_samples(1, int(float(self.batch) / self.number_of_devices), len(self.train_x), sort=False))[0]
                 x = self.train_x[indices]
                 t = self.train_y[indices]
                 args = list(six.moves.zip(x, t, da_args))
@@ -420,7 +420,7 @@ class TrainCifar10WithMultiGpus(object):
         train_batch_divide = self.train_batch_divide
         batch_of_batch = int(float(batch) / len(gpus) / train_batch_divide)
         sum_loss = 0
-        yielder = sampling.yield_random_batch_samples(int(len(train_x) / batch), int(float(batch) / len(self.gpus)), len(train_x), sort=False)
+        yielder = self.sampling.yield_random_batch_samples(int(len(train_x) / batch), int(float(batch) / len(self.gpus)), len(train_x), sort=False)
         progressbar = utility.create_progressbar(int(len(train_x) / batch), desc='train', stride=1)
         # train start
         for _, indices in six.moves.zip(progressbar, yielder):
