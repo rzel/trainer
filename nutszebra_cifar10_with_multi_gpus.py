@@ -2,6 +2,7 @@ import six
 import itertools
 import numpy as np
 import multiprocessing
+import chainer
 from chainer import serializers
 from chainer import cuda
 import nutszebra_log2
@@ -15,6 +16,7 @@ import nutszebra_basic_print
 try:
     from cupy.cuda import nccl
     _available = True
+    chainer.cuda.set_max_workspace_size(chainer.cuda.get_max_workspace_size * 4)
 except ImportError:
     _available = False
 
