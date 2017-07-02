@@ -251,7 +251,7 @@ def scatter_params(link, array):
 
 class TrainCifar10WithMultiGpus(object):
 
-    def __init__(self, model=None, optimizer=None, load_model=None, load_optimizer=None, load_log=None, load_data=None, da=nutszebra_data_augmentation.DataAugmentationNormalizeBigger, save_path='./', epoch=200, batch=128, gpus=(0, 1, 2, 3), start_epoch=1, train_batch_divide=1, test_batch_divide=1, parallel_train=4, parallel_test=16):
+    def __init__(self, model=None, optimizer=None, load_model=None, load_optimizer=None, load_log=None, load_data=None, da=nutszebra_data_augmentation.DataAugmentationNormalizeBigger, save_path='./', epoch=200, batch=128, gpus=(0, 1, 2, 3), start_epoch=1, train_batch_divide=1, test_batch_divide=1, parallel_train=2, parallel_test=16):
         self.model = model
         self.optimizer = optimizer
         self.load_model = load_model
