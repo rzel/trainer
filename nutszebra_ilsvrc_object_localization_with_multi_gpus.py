@@ -42,6 +42,7 @@ class _Worker(multiprocessing.Process):
         self.master = master
         self.train_x = master.train_x
         self.train_y = master.train_y
+        self.parallel_train = master.parallel_train
         self.train_batch_divide = master.train_batch_divide
         self.picture_number_at_each_categories = master.picture_number_at_each_categories
         self.sampling = sampling
@@ -62,6 +63,8 @@ class _Worker(multiprocessing.Process):
         # build communication via nccl
         self.setup()
         gp = None
+        p = multiprocessing.Pool(self.parallel_train)
+        args_da = [self.da() for _ in six.moves.range(self.batch)]
         while True:
             job, data = self.pipe.recv()
             if job == 'finalize':
@@ -73,14 +76,9 @@ class _Worker(multiprocessing.Process):
                 indices = list(self.sampling.yield_random_batch_from_category(1, self.picture_number_at_each_categories, self.batch, shuffle=True))[0]
                 x = self.train_x[indices]
                 t = self.train_y[indices]
-                tmp_x = []
-                tmp_t = []
-                for i in six.moves.range(len(x)):
-                    img, info = self.da.train(x[i])
-                    if img is not None:
-                        tmp_x.append(img)
-                        tmp_t.append(t[i])
-                # tmp_x = Da.zero_padding(tmp_x)
+                args = list(zip(x, t, args_da))
+                processed = p.starmap(process_train, args)
+                tmp_x, tmp_t = list(zip(*processed))
                 train = True
                 x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.device)
                 t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.device)
@@ -247,7 +245,7 @@ def scatter_params(link, array):
 
 class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
 
-    def __init__(self, model=None, optimizer=None, load_model=None, load_optimizer=None, load_log=None, load_data=None, da=nutszebra_data_augmentation.DataAugmentationNormalizeBigger, save_path='./', epoch=100, batch=128, gpus=(0, 1, 2, 3), start_epoch=1, train_batch_divide=2, test_batch_divide=2, small_sample_training=None):
+    def __init__(self, model=None, optimizer=None, load_model=None, load_optimizer=None, load_log=None, load_data=None, da=nutszebra_data_augmentation.DataAugmentationNormalizeBigger, save_path='./', epoch=100, batch=128, gpus=(0, 1, 2, 3), start_epoch=1, train_batch_divide=2, test_batch_divide=2, small_sample_training=None, parallel_train=4, parallel_test=16):
         self.model = model
         self.optimizer = optimizer
         self.load_model = load_model
@@ -264,6 +262,8 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         self.train_batch_divide = train_batch_divide
         self.test_batch_divide = test_batch_divide
         self.small_sample_training = small_sample_training
+        self.parallel_train = parallel_train
+        self.parallel_test = parallel_test
         # Generate dataset
         self.train_x, self.train_y, self.test_x, self.test_y, self.picture_number_at_each_categories, self.categories, self._test = self.data_init()
         # Log module
@@ -307,10 +307,9 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         return (train_x, train_y, test_x, test_y, picture_number_at_each_categories, categories, data.test)
 
     def log_init(self):
-        load_log = self.load_log
         log = nutszebra_log2.Log2()
-        if load_log is not None:
-            log.load(load_log)
+        if self.load_log is not None:
+            log.load(self.load_log)
         else:
             log({'are': self.categories}, 'categories')
             log({'parameter': len(self.train_x)}, 'train_parameter')
@@ -346,14 +345,13 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
         self.model.cleargrads()
         for i in six.moves.range(1, len(self.gpus)):
             pipe, worker_end = multiprocessing.Pipe()
-            worker = _Worker(i, worker_end, self.model, self.gpus, self.da(), int(self.batch / len(self.gpus) / self.train_batch_divide), self)
+            worker = _Worker(i, worker_end, self.model, self.gpus, self.da, int(float(self.batch) / len(self.gpus) / self.train_batch_divide), self)
             worker.start()
             self._workers.append(worker)
             self._pipes.append(pipe)
 
         with cuda.Device(self.gpus[0]):
             self.model.to_gpu(self.gpus[0])
-            self.da = self.da()
             if len(self.gpus) > 1:
                 communication_id = nccl.get_unique_id()
                 self._send_message(("set comm_id", communication_id))
@@ -361,19 +359,15 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                                                            communication_id,
                                                            0)
 
-    def update_core(self, x, t):
+    def update_core(self, x, t, p, args_da):
         self._send_message(('update', None))
         with cuda.Device(self.gpus[0]):
             self.model.cleargrads()
-            tmp_x = []
-            tmp_t = []
-            for i in six.moves.range(len(x)):
-                img, info = self.da.train(x[i])
-                if img is not None:
-                    tmp_x.append(img)
-                    tmp_t.append(t[i])
-            train = True
+            args = list(zip(x, t, args_da))
+            processed = p.starmap(process_train, args)
+            tmp_x, tmp_t = list(zip(*processed))
             data_length = len(tmp_x)
+            train = True
             x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpus[0])
             t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.gpus[0])
             y = self.model(x, train=train)
@@ -420,140 +414,121 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
     def train_one_epoch(self):
         self.setup_workers()
         # initialization
-        log = self.log
-        train_x = self.train_x
-        train_y = self.train_y
-        batch = self.batch
-        gpus = self.gpus
-        train_batch_divide = self.train_batch_divide
-        batch_of_batch = int(float(batch) / len(gpus) / train_batch_divide)
+        batch_of_batch = int(float(self.batch) / len(self.gpus) / self.train_batch_divide)
         sum_loss = 0
-        yielder = self.sampling.yield_random_batch_from_category(int(len(train_x) / batch), self.picture_number_at_each_categories, int(float(batch) / len(gpus)), shuffle=True)
-        progressbar = utility.create_progressbar(int(len(train_x) / batch), desc='train', stride=1)
+        yielder = self.sampling.yield_random_batch_from_category(int(len(self.train_x) / float(self.batch)), self.picture_number_at_each_categories, int(float(self.batch) / len(self.gpus)), shuffle=True)
+        progressbar = utility.create_progressbar(int(len(self.train_x) / float(self.batch)), desc='train', stride=1)
         # train start
+        p = multiprocessing.Pool(self.parallel_train)
+        args_da = [self._da() for _ in six.moves.range(batch_of_batch)]
         for _, indices in six.moves.zip(progressbar, yielder):
             for ii in six.moves.range(0, len(indices), batch_of_batch):
-                x = train_x[indices[ii:ii + batch_of_batch]]
-                t = train_y[indices[ii:ii + batch_of_batch]]
-                sum_loss += self.update_core(x, t) * len(gpus)
-        log({'loss': float(sum_loss)}, 'train_loss')
-        print(log.train_loss())
+                x = self.train_x[indices[ii:ii + batch_of_batch]]
+                t = self.train_y[indices[ii:ii + batch_of_batch]]
+                sum_loss += self.update_core(x, t, p, args_da) * len(self.gpus)
+        self.log({'loss': float(sum_loss)}, 'train_loss')
+        print(self.log.train_loss())
 
     def test_one_epoch(self):
         self.setup_workers()
-        # initialization
-        log = self.log
-        test_x = self.test_x
-        test_y = self.test_y
-        batch = self.batch
-        test_batch_divide = self.test_batch_divide
-        batch_of_batch = int(batch / test_batch_divide)
-        categories = self.categories
+        batch_of_batch = int(float(self.batch) / self.test_batch_divide)
         sum_loss = 0
         sum_accuracy = {}
         sum_5_accuracy = {}
         false_accuracy = {}
-        for ii in six.moves.range(len(categories)):
+        for ii in six.moves.range(len(self.categories)):
             sum_accuracy[ii] = 0
             sum_5_accuracy[ii] = 0
-        elements = six.moves.range(len(categories))
+        elements = six.moves.range(len(self.categories))
         for ii, iii in itertools.product(elements, elements):
             false_accuracy[(ii, iii)] = 0
-        progressbar = utility.create_progressbar(len(test_x), desc='test', stride=batch_of_batch)
+        progressbar = utility.create_progressbar(len(self.test_x), desc='test', stride=batch_of_batch)
+        p = multiprocessing.Pool(self.parallel_test)
+        args_da = [self._da() for _ in six.moves.range(batch_of_batch)]
         for i in progressbar:
-            x = test_x[i:i + batch_of_batch]
-            t = test_y[i:i + batch_of_batch]
-            da = [self._da for _ in six.moves.range(len(x))]
-            tmp_x = []
-            tmp_t = []
-            args = list(zip(x, t, da))
-            with multiprocessing.Pool(8) as p:
-                processed = p.starmap(process, args)
+            x = self.test_x[i:i + batch_of_batch]
+            t = self.test_y[i:i + batch_of_batch]
+            args = list(zip(x, t, args_da))
+            processed = p.starmap(process_train, args)
             tmp_x, tmp_t = list(zip(*processed))
-            # for i in six.moves.range(len(x)):
-            #     img, info = self.da.test(x[i])
-            #     if img is not None:
-            #         tmp_x.append(img)
-            #         tmp_t.append(t[i])
             data_length = len(tmp_x)
             train = False
             x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpus[0])
             t = self.model.prepare_input(tmp_t, dtype=np.int32, volatile=not train, gpu=self.gpus[0])
             y = self.model(x, train=train)
             tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy = self.model.accuracy_n(y, t, n=5)
-            loss = self.model.calc_loss(y, t)
-            loss.to_cpu()
             for key in tmp_accuracy:
                 sum_accuracy[key] += tmp_accuracy[key]
             for key in tmp_5_accuracy:
                 sum_5_accuracy[key] += tmp_5_accuracy[key]
             for key in tmp_false_accuracy:
                 false_accuracy[key] += tmp_false_accuracy[key]
+            loss = self.model.calc_loss(y, t)
+            loss.to_cpu()
             sum_loss += float(loss.data) * data_length
         # sum_loss
-        log({'loss': float(sum_loss)}, 'test_loss')
+        self.log({'loss': float(sum_loss)}, 'test_loss')
         # sum_accuracy
         num = 0
         for key in sum_accuracy:
             value = sum_accuracy[key]
-            log({'accuracy': int(value)}, 'test_accuracy_{}'.format(key))
+            self.log({'accuracy': int(value)}, 'test_accuracy_{}'.format(key))
             num += value
-        log({'accuracy': int(num)}, 'test_accuracy')
+        self.log({'accuracy': int(num)}, 'test_accuracy')
         # sum_5_accuracy
         num = 0
         for key in sum_5_accuracy:
             value = sum_5_accuracy[key]
-            log({'accuracy': int(value)}, 'test_5_accuracy_{}'.format(key))
+            self.log({'accuracy': int(value)}, 'test_5_accuracy_{}'.format(key))
             num += value
-        log({'accuracy': int(num)}, 'test_5_accuracy')
+        self.log({'accuracy': int(num)}, 'test_5_accuracy')
         # false_accuracy
         for key in false_accuracy:
             if key[0] == key[1]:
                 pass
             else:
                 value = false_accuracy[key]
-                log({'accuracy': int(value)}, 'test_accuracy_{}_{}'.format(key[0], key[1]))
+                self.log({'accuracy': int(value)}, 'test_accuracy_{}_{}'.format(key[0], key[1]))
         # show logs
-        sen = [log.test_loss(), log.test_accuracy(max_flag=True), log.test_5_accuracy(max_flag=True)]
+        sen = [self.log.test_loss(), self.log.test_accuracy(max_flag=True), self.log.test_5_accuracy(max_flag=True)]
         print('\n'.join(sen))
 
     def predict(self, test_x, da, batch=64, parallel=8):
         results = {}
         progressbar = utility.create_progressbar(len(test_x), desc='test', stride=batch)
+        da_args = [da() for _ in six.moves.range(batch)]
+        p = multiprocessing.Pool(parallel)
         for i in progressbar:
             x = test_x[i:i + batch]
-            da = [da for _ in six.moves.range(len(x))]
-            args = list(zip(x, x, da))
-            with multiprocessing.Pool(parallel) as p:
-                processed = p.starmap(process, args)
+            args = list(zip(x, x, da_args))
+            processed = p.starmap(process_test, args)
             tmp_x, filenames = list(zip(*processed))
             train = False
             x = self.model.prepare_input(tmp_x, dtype=np.float32, volatile=not train, gpu=self.gpus[0])
             y = self.model(x, train=train)
             for i in six.moves.range(len(filenames)):
                 results[filenames[i]] = [float(num) for num in y.data[i]]
+        p.close()
         return results
 
     def run(self):
-        log = self.log
-        model = self.model
-        optimizer = self.optimizer
-        epoch = self.epoch
-        start_epoch = self.start_epoch
-        save_path = self.save_path
-        epoch_progressbar = utility.create_progressbar(epoch + 1, desc='epoch', stride=1, start=start_epoch)
+        epoch_progressbar = utility.create_progressbar(self.epoch + 1, desc='epoch', stride=1, start=self.start_epoch)
         for i in epoch_progressbar:
             self.train_one_epoch()
             # save model
-            model.save_model('{}model/{}_{}.model'.format(save_path, model.name, i))
-            optimizer(i)
+            self.model.save_model('{}model/{}_{}.model'.format(self.save_path, self.model.name, i))
+            self.optimizer(i)
             self.test_one_epoch()
-            log.generate_loss_figure('{}loss.jpg'.format(save_path))
-            log.generate_accuracy_figure('{}accuracy.jpg'.format(save_path))
-            log.save(save_path + 'log.json')
+            self.log.generate_loss_figure('{}loss.jpg'.format(self.save_path))
+            self.log.generate_accuracy_figure('{}accuracy.jpg'.format(self.save_path))
+            self.log.save(self.save_path + 'log.json')
 
 
-def process(x, t, _da):
-    da = _da()
+def process_train(x, t, da):
+    x, info = da.train(x)
+    return (x, t)
+
+
+def process_test(x, t, da):
     x, info = da.test(x)
     return (x, t)
