@@ -1,6 +1,10 @@
+# To make forward fast
+import os
+os.environ["CHAINER_TYPE_CHECK"] = "0"
 import six
 import itertools
 import numpy as np
+import chainer
 from chainer import serializers
 from chainer import cuda
 import nutszebra_log2
@@ -14,6 +18,7 @@ import multiprocessing
 
 try:
     from cupy.cuda import nccl
+    chainer.cuda.set_max_workspace_size(chainer.cuda.get_max_workspace_size() * 4)
     _available = True
 except ImportError:
     _available = False
