@@ -163,7 +163,7 @@ class TrainCifar10(object):
                 sum_accuracy[key] += tmp_accuracy[key]
             for key in tmp_false_accuracy:
                 false_accuracy[key] += tmp_false_accuracy[key]
-            y = np.argmax(y.data, axis=0)
+            y = np.argmax(y.data, axis=1)
             for ii in six.moves.range(t.data.shape[0]):
                 results.append(y[ii] == t.data[ii])
             model.save_computational_graph(loss, path=save_path)
