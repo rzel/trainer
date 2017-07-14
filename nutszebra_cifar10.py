@@ -144,6 +144,7 @@ class TrainCifar10(object):
         for ii, iii in itertools.product(elements, elements):
             false_accuracy[(ii, iii)] = 0
         progressbar = utility.create_progressbar(len(test_x), desc='test', stride=batch_of_batch)
+        results = []
         for i in progressbar:
             x = test_x[i:i + batch_of_batch]
             t = test_y[i:i + batch_of_batch]
@@ -162,6 +163,9 @@ class TrainCifar10(object):
                 sum_accuracy[key] += tmp_accuracy[key]
             for key in tmp_false_accuracy:
                 false_accuracy[key] += tmp_false_accuracy[key]
+            y = np.argmax(y.data, axis=0)
+            for ii in six.moves.range(t.data.shape[0]):
+                results.append = y[ii] == t.data[ii]
             model.save_computational_graph(loss, path=save_path)
             del loss
             del x
@@ -186,6 +190,7 @@ class TrainCifar10(object):
         sen = [log.test_loss(), log.test_accuracy(max_flag=True), log.test_each_accuracy(max_flag=True)]
         # slack.post('\n'.join(sen))
         print('\n'.join(sen))
+        return results
 
     def run(self):
         log = self.log
