@@ -433,6 +433,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
                 sum_loss += self.update_core(x, t, p, args_da) * len(self.gpus)
         self.log({'loss': float(sum_loss)}, 'train_loss')
         print(self.log.train_loss())
+        p.close()
 
     def test_one_epoch(self):
         self.setup_workers()
@@ -471,6 +472,7 @@ class TrainIlsvrcObjectLocalizationClassificationWithMultiGpus(object):
             loss = self.model.calc_loss(y, t)
             loss.to_cpu()
             sum_loss += float(loss.data) * data_length
+        p.close()
         # sum_loss
         self.log({'loss': float(sum_loss)}, 'test_loss')
         # sum_accuracy
