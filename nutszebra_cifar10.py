@@ -45,13 +45,18 @@ class TrainCifar10(object):
     def data_init(self):
         dl = nutszebra_download_cifar10.Cifar10()
         data = dl.load_cifar10_data()
-        train_x = data['train_x']
-        train_y = data['train_y']
-        test_x = data['test_x']
-        test_y = data['test_y']
-        meta = data['meta']
-        categories = list(set(train_y.tolist()))
-        return (train_x, train_y, test_x, test_y, meta, categories)
+        categories = sorted(list(set(data['train_y'].tolist())))
+        train_x, train_y, test_x, test_y = [], [], [], []
+        picture_number_at_each_categories = []
+        for i, category in enumerate(categories):
+            indices = np.where(data['train_y'] == category)[0]
+            picture_number_at_each_categories.append(indices.shape[0])
+            train_x += data['train_x'][indices].tolist()
+            train_y += [i for _ in six.moves.range(indices.shape[0])]
+            indices = np.where(data['test_y'] == category)[0]
+            test_x += data['test_x'][indices].tolist()
+            test_y += [i for _ in six.moves.range(indices.shape[0])]
+        return (train_x, train_y, test_x, test_y, picture_number_at_each_categories, categories)
 
     def log_init(self):
         load_log = self.load_log
@@ -91,7 +96,8 @@ class TrainCifar10(object):
         train_batch_divide = self.train_batch_divide
         batch_of_batch = int(batch / train_batch_divide)
         sum_loss = 0
-        yielder = sampling.yield_random_batch_samples(int(len(train_x) / batch), batch, len(train_x), sort=False)
+        # yielder = sampling.yield_random_batch_samples(int(len(train_x) / batch), batch, len(train_x), sort=False)
+        yielder = sampling.yield_random_batch_from_category(int(len(train_x) / batch), self.picture_number_at_each_categories, batch, shuffle=True)
         progressbar = utility.create_progressbar(int(len(train_x) / batch), desc='train', stride=1)
         # train start
         for _, indices in six.moves.zip(progressbar, yielder):
