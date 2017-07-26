@@ -56,6 +56,8 @@ class TrainCifar10(object):
             indices = np.where(data['test_y'] == category)[0]
             test_x += data['test_x'][indices].tolist()
             test_y += [i for _ in six.moves.range(indices.shape[0])]
+        train_x, train_y = np.array(train_x), np.array(train_y)
+        test_x, test_y = np.array(test_x), np.array(test_y)
         return (train_x, train_y, test_x, test_y, picture_number_at_each_categories, categories)
 
     def log_init(self):
@@ -96,7 +98,6 @@ class TrainCifar10(object):
         train_batch_divide = self.train_batch_divide
         batch_of_batch = int(batch / train_batch_divide)
         sum_loss = 0
-        # yielder = sampling.yield_random_batch_samples(int(len(train_x) / batch), batch, len(train_x), sort=False)
         yielder = sampling.yield_random_batch_from_category(int(len(train_x) / batch), self.picture_number_at_each_categories, batch, shuffle=True)
         progressbar = utility.create_progressbar(int(len(train_x) / batch), desc='train', stride=1)
         # train start
