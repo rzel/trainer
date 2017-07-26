@@ -34,7 +34,7 @@ class TrainCifar10(object):
         self.start_epoch = start_epoch
         self.train_batch_divide = train_batch_divide
         self.test_batch_divide = test_batch_divide
-        self.train_x, self.train_y, self.test_x, self.test_y, self.meta, self.categories = self.data_init()
+        self.train_x, self.train_y, self.test_x, self.test_y, self.picture_number_at_each_categories, self.categories = self.data_init()
         self.log = self.log_init()
         self.model_init()
         self.save_path = save_path if save_path[-1] == '/' else save_path + '/'
