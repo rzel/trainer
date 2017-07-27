@@ -34,7 +34,9 @@ class TrainCifar10(object):
         self.start_epoch = start_epoch
         self.train_batch_divide = train_batch_divide
         self.test_batch_divide = test_batch_divide
-        self.train_x, self.train_y, self.test_x, self.test_y, self.picture_number_at_each_categories, self.categories = self.data_init()
+        dl = nutszebra_download_cifar10.Cifar10()
+        data = dl.load_cifar10_data()
+        self.data_init(data['train_x'], data['train_y'], data['test_x'], data['test_y'])
         self.log = self.log_init()
         self.model_init()
         self.save_path = save_path if save_path[-1] == '/' else save_path + '/'
@@ -42,22 +44,22 @@ class TrainCifar10(object):
         self.log_model = nutszebra_log_model.LogModel(self.model, save_path=self.save_path)
         self.debug_flag = debug_flag
 
-    def data_init(self):
-        dl = nutszebra_download_cifar10.Cifar10()
-        data = dl.load_cifar10_data()
-        categories = sorted(list(set(data['train_y'].tolist())))
+    def data_init(self, _train_x, _train_y, _test_x, _test_y):
+        categories = sorted(list(set(_train_y.tolist())))
         train_x, train_y, test_x, test_y = [], [], [], []
         picture_number_at_each_categories = []
         for i, category in enumerate(categories):
-            indices = np.where(data['train_y'] == category)[0]
+            indices = np.where(_train_y == category)[0]
             picture_number_at_each_categories.append(indices.shape[0])
-            train_x += data['train_x'][indices].tolist()
+            train_x += _train_x[indices].tolist()
             train_y += [i for _ in six.moves.range(indices.shape[0])]
-            indices = np.where(data['test_y'] == category)[0]
-            test_x += data['test_x'][indices].tolist()
+            indices = np.where(_test_y == category)[0]
+            test_x += _test_x[indices].tolist()
             test_y += [i for _ in six.moves.range(indices.shape[0])]
-        train_x, train_y = np.array(train_x), np.array(train_y)
-        test_x, test_y = np.array(test_x), np.array(test_y)
+        self.train_x, self.train_y = np.array(train_x), np.array(train_y)
+        self.test_x, self.test_y = np.array(test_x), np.array(test_y)
+        self.picture_number_at_each_categories = picture_number_at_each_categories
+        self.categories = categories
         return (train_x, train_y, test_x, test_y, picture_number_at_each_categories, categories)
 
     def log_init(self):
