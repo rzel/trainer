@@ -60,6 +60,7 @@ class TrainCifar10(object):
         self.test_x, self.test_y = np.array(test_x), np.array(test_y)
         self.picture_number_at_each_categories = picture_number_at_each_categories
         self.categories = categories
+        print('picture_number_at_each_categories: {}'.format(self.picture_number_at_each_categories))
         return (train_x, train_y, test_x, test_y, picture_number_at_each_categories, categories)
 
     def log_init(self):

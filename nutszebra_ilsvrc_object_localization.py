@@ -37,7 +37,7 @@ class TrainIlsvrcObjectLocalizationClassification(object):
         self.train_batch_divide = train_batch_divide
         self.test_batch_divide = test_batch_divide
         self.small_sample_training = small_sample_training
-        self.train_x, self.train_y, self.test_x, self.test_y, self.picture_number_at_each_categories, self.categories, self._test = self.data_init()
+        self.data_init()
         self.log = self.log_init()
         self.model_init()
         self.save_path = save_path if save_path[-1] == '/' else save_path + '/'
@@ -64,10 +64,13 @@ class TrainIlsvrcObjectLocalizationClassification(object):
                 test_x += data['val'][key]
                 test_y += [i for _ in six.moves.range(len(data['val'][key]))]
         categories = keys
-        train_x = np.array(train_x)
-        train_y = np.array(train_y)
-        test_x = np.array(test_x)
-        test_y = np.array(test_y)
+
+        train_x, train_y = np.array(train_x), np.array(train_y)
+        test_x, test_y = np.array(test_x), np.array(test_y)
+
+        self.train_x, self.train_y, self.test_x, self.test_y = train_x, train_y, test_x, test_y
+        self.picture_number_at_each_categories = picture_number_at_each_categories
+        self.categories, self._test = categories, data.test
         return (train_x, train_y, test_x, test_y, picture_number_at_each_categories, categories, data.test)
 
     def log_init(self):
