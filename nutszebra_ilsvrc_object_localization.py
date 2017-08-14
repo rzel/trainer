@@ -117,7 +117,7 @@ class TrainIlsvrcObjectLocalizationClassification(object):
             serializers.load_npz(load_model, model)
         model.check_gpu(gpu)
 
-    def train_one_epoch(self):
+    def train_one_epoch(self, parallel=8):
         # initialization
         log = self.log
         model = self.model
@@ -130,6 +130,8 @@ class TrainIlsvrcObjectLocalizationClassification(object):
         sum_loss = 0
         yielder = sampling.yield_random_batch_from_category(int(len(train_x) / batch), self.picture_number_at_each_categories, batch, shuffle=True)
         progressbar = utility.create_progressbar(int(len(train_x) / batch), desc='train', stride=1)
+        p = multiprocessing.Pool(parallel)
+        _da = [self.da() for _ in six.moves.range(int(batch_of_batch))]
         # train start
         for _, indices in six.moves.zip(progressbar, yielder):
             model.cleargrads()
@@ -137,14 +139,15 @@ class TrainIlsvrcObjectLocalizationClassification(object):
                 x = train_x[indices[ii:ii + batch_of_batch]]
                 t = train_y[indices[ii:ii + batch_of_batch]]
                 data_length = len(x)
-                tmp_x = []
-                tmp_t = []
-                for i in six.moves.range(len(x)):
-                    img, info = self.da.train(x[i])
-                    if img is not None:
-                        tmp_x.append(img)
-                        tmp_t.append(t[i])
-                tmp_x = Da.zero_padding(tmp_x)
+                args = list(zip(x, t, _da[:data_length]))
+                processed = p.starmap(process_train, args)
+                _tmp_x, _tmp_t = list(zip(*processed))
+                tmp_x, tmp_t = [], []
+                for xx, tt in six.moves.zip(_tmp_x, _tmp_t):
+                    if xx is not None:
+                        tmp_x.append(xx)
+                        tmp_t.append(tt)
+                # tmp_x = Da.zero_padding(tmp_x)
                 x = model.prepare_input(tmp_x, dtype=np.float32, volatile=False)
                 y = model(x, train=True)
                 t = model.prepare_input(tmp_t, dtype=np.int32, volatile=False)
@@ -296,4 +299,9 @@ class TrainIlsvrcObjectLocalizationClassification(object):
 
 def process(x, t, da):
     x, info = da.test(x)
+    return (x, t)
+
+
+def process_train(x, t, da):
+    x, info = da.train(x)
     return (x, t)
