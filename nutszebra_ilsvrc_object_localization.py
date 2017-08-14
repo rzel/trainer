@@ -74,7 +74,7 @@ class TrainIlsvrcObjectLocalizationClassification(object):
         return (train_x, train_y, test_x, test_y, picture_number_at_each_categories, categories, data.test)
 
     def modify_data(self, _train_x, _train_y, _test_x, _test_y):
-        categories = sorted(list(set(_train_y.tolist())))
+        categories = self.categories
         train_x, train_y, test_x, test_y = [], [], [], []
         picture_number_at_each_categories = []
         for i, category in enumerate(categories):
