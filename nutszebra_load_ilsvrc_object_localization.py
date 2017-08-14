@@ -28,7 +28,7 @@ class LoadDataset(Assignment):
         for f, key in six.moves.zip(self.filename, self.keys):
             print('    {}'.format(f))
             if '{}.pkl'.format(key) in utility.find_files(ilsvrc_path, affix_flag=True):
-                print('    Already {} were loaded before'.format(f))
+                print('        Already {} were loaded before'.format(f))
                 self[key] = utility.load_pickle('{}/{}.pkl'.format(ilsvrc_path, key))
             elif 'train' in f:
                 print('        Loading')
