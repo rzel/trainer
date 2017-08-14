@@ -74,7 +74,7 @@ class TrainIlsvrcObjectLocalizationClassification(object):
         return (train_x, train_y, test_x, test_y, picture_number_at_each_categories, categories, data.test)
 
     def modify_data(self, _train_x, _train_y, _test_x, _test_y):
-        categories = self.categories
+        categories = sorted(list(set(_test_y.tolist())))
         train_x, train_y, test_x, test_y = [], [], [], []
         picture_number_at_each_categories = []
         for i, category in enumerate(categories):
@@ -179,7 +179,7 @@ class TrainIlsvrcObjectLocalizationClassification(object):
             false_accuracy[(ii, iii)] = 0
         progressbar = utility.create_progressbar(len(test_x), desc='test', stride=batch_of_batch)
         p = multiprocessing.Pool(parallel)
-        _da = [self.da() for _ in six.moves.range(len(batch_of_batch))]
+        _da = [self.da() for _ in six.moves.range(int(batch_of_batch))]
         results = []
         for i in progressbar:
             x = test_x[i:i + batch_of_batch]
