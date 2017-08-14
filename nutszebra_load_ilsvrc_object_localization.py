@@ -33,15 +33,15 @@ class LoadDataset(Assignment):
             elif 'train' in f:
                 print('    loading')
                 self[key] = self._train('{}/ImageSets/CLS-LOC/{}'.format(ilsvrc_path, f), '{}/Data/CLS-LOC/train'.format(ilsvrc_path))
-                utility.save_pickle('{}/{}.pkl'.format(ilsvrc_path, key), self[key])
+                utility.save_pickle(self[key], '{}/{}.pkl'.format(ilsvrc_path, key))
             elif 'val' in f:
                 print('    loading')
                 self[key] = self._val('{}/ImageSets/CLS-LOC/{}'.format(ilsvrc_path, f), '{}/Data/CLS-LOC/val'.format(ilsvrc_path), '{}/Annotations/CLS-LOC/val'.format(ilsvrc_path))
-                utility.save_pickle('{}/{}.pkl'.format(ilsvrc_path, key), self[key])
+                utility.save_pickle(self[key], '{}/{}.pkl'.format(ilsvrc_path, key))
             elif 'test' in f:
                 print('    loading')
                 self[key] = self._test('{}/ImageSets/CLS-LOC/{}'.format(ilsvrc_path, f), '{}/Data/CLS-LOC/test'.format(ilsvrc_path))
-                utility.save_pickle('{}/{}.pkl'.format(ilsvrc_path, key), self[key])
+                utility.save_pickle(self[key], '{}/{}.pkl'.format(ilsvrc_path, key))
         self.debug(flag_debug)
 
     def debug(self, flag=False):
