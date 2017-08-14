@@ -73,6 +73,24 @@ class TrainIlsvrcObjectLocalizationClassification(object):
         self.categories, self._test = categories, data.test
         return (train_x, train_y, test_x, test_y, picture_number_at_each_categories, categories, data.test)
 
+    def modify_data(self, _train_x, _train_y, _test_x, _test_y):
+        categories = sorted(list(set(_train_y.tolist())))
+        train_x, train_y, test_x, test_y = [], [], [], []
+        picture_number_at_each_categories = []
+        for i, category in enumerate(categories):
+            indices = np.where(_train_y == category)[0]
+            picture_number_at_each_categories.append(indices.shape[0])
+            train_x += _train_x[indices].tolist()
+            train_y += [i for _ in six.moves.range(indices.shape[0])]
+            indices = np.where(_test_y == category)[0]
+            test_x += _test_x[indices].tolist()
+            test_y += [i for _ in six.moves.range(indices.shape[0])]
+        self.train_x, self.train_y = np.array(train_x), np.array(train_y)
+        self.test_x, self.test_y = np.array(test_x), np.array(test_y)
+        self.picture_number_at_each_categories = picture_number_at_each_categories
+        self.categories = categories
+        return (train_x, train_y, test_x, test_y, picture_number_at_each_categories, categories)
+
     def log_init(self):
         load_log = self.load_log
         log = nutszebra_log2.Log2()
@@ -160,6 +178,7 @@ class TrainIlsvrcObjectLocalizationClassification(object):
         for ii, iii in itertools.product(elements, elements):
             false_accuracy[(ii, iii)] = 0
         progressbar = utility.create_progressbar(len(test_x), desc='test', stride=batch_of_batch)
+        results = []
         for i in progressbar:
             x = test_x[i:i + batch_of_batch]
             t = test_y[i:i + batch_of_batch]
@@ -179,6 +198,9 @@ class TrainIlsvrcObjectLocalizationClassification(object):
             loss.to_cpu()
             sum_loss += loss.data * data_length
             tmp_accuracy, tmp_5_accuracy, tmp_false_accuracy = model.accuracy_n(y, t, n=5)
+            y = np.argmax(y.data, axis=1)
+            for ii in six.moves.range(t.data.shape[0]):
+                results.append(y[ii] == t.data[ii])
             for key in tmp_accuracy:
                 sum_accuracy[key] += tmp_accuracy[key]
             for key in tmp_5_accuracy:
@@ -217,6 +239,7 @@ class TrainIlsvrcObjectLocalizationClassification(object):
         # show logs
         sen = [log.test_loss(), log.test_accuracy(max_flag=True), log.test_5_accuracy(max_flag=True)]
         print('\n'.join(sen))
+        return results
 
     def predict(self, test_x, da, batch=64, parallel=8):
         results = {}
