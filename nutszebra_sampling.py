@@ -541,8 +541,13 @@ class Sampling(object):
             sample = [[] for _ in six.moves.range(number_of_categories)]
             for ii in six.moves.range(pick_number):
                 # select category randomly
-                index = Sampling.pick_random_permutation(2, number_of_categories)[0]
-                # get one sample from selected category
+                while True:
+                    index = Sampling.pick_random_permutation(2, number_of_categories)[0]
+                    # get one sample from selected category
+                    if number_of_picture_at_each_categories[index] == 0:
+                        continue
+                    else:
+                        break
                 sample[index].append(Sampling.pick_random_permutation(1, number_of_picture_at_each_categories[index])[0])
             if sequence is True:
                 sequence_sample = []
