@@ -156,7 +156,7 @@ class TrainIlsvrcObjectLocalizationClassification(object):
         log({'loss': float(sum_loss)}, 'train_loss')
         print(log.train_loss())
 
-    def test_one_epoch(self):
+    def test_one_epoch(self, parallel=8):
         # initialization
         log = self.log
         model = self.model
@@ -178,19 +178,17 @@ class TrainIlsvrcObjectLocalizationClassification(object):
         for ii, iii in itertools.product(elements, elements):
             false_accuracy[(ii, iii)] = 0
         progressbar = utility.create_progressbar(len(test_x), desc='test', stride=batch_of_batch)
+        p = multiprocessing.Pool(parallel)
+        _da = [self.da() for _ in six.moves.range(len(batch_of_batch))]
         results = []
         for i in progressbar:
             x = test_x[i:i + batch_of_batch]
             t = test_y[i:i + batch_of_batch]
-            tmp_x = []
-            tmp_t = []
-            for i in six.moves.range(len(x)):
-                img, info = self.da.test(x[i])
-                if img is not None:
-                    tmp_x.append(img)
-                    tmp_t.append(t[i])
+            args = list(zip(x, t, _da[:len(x)]))
+            processed = p.starmap(process, args)
+            tmp_x, tmp_t = list(zip(*processed))
             data_length = len(tmp_x)
-            tmp_x = Da.zero_padding(tmp_x)
+            # tmp_x = Da.zero_padding(tmp_x)
             x = model.prepare_input(tmp_x, dtype=np.float32, volatile=True)
             y = model(x, train=False)
             t = model.prepare_input(tmp_t, dtype=np.int32, volatile=True)
@@ -213,6 +211,7 @@ class TrainIlsvrcObjectLocalizationClassification(object):
             del loss
             del x
             del t
+        p.close()
         # sum_loss
         log({'loss': float(sum_loss)}, 'test_loss')
         # sum_accuracy
