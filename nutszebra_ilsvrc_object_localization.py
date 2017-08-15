@@ -156,6 +156,7 @@ class TrainIlsvrcObjectLocalizationClassification(object):
                 loss.to_cpu()
                 sum_loss += loss.data * data_length
             optimizer.update()
+        p.close()
         log({'loss': float(sum_loss)}, 'train_loss')
         print(log.train_loss())
 
