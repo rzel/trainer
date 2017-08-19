@@ -1435,3 +1435,13 @@ class DataAugmentationPicture(object):
         for i in six.moves.range(len(eigval)):
             x_or_probability[:, :, i] = x_or_probability[:, :, i] + eigvec[i]
         return (x_or_probability, {'eigval': eigval[0], 'alpha': alpha[0]})
+
+    @execute_based_on_probability
+    def cutout(self, x_or_probability, sizes=(16, 16), dtype=np.float32):
+        x_or_probability = x_or_probability.astype(dtype)
+        y, x = x_or_probability.shape[0:2]
+        keypoints = DataAugmentationPicture.get_keypoints_randomly_for_cropping((y, x), sizes)
+        start_y, end_y = keypoints[0]
+        start_x, end_x = keypoints[1]
+        x_or_probability[start_y:end_y, start_x:end_x] = 0.0
+        return (x_or_probability, {'keypoints': keypoints, 'original_size': (y, x), 'dtype': dtype})
